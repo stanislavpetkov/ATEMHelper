@@ -45,7 +45,7 @@ struct OutputStreamStruct
 namespace logger
 {
 
-	const std::wstring log_subfolder = L"\\PlayBoxNeo\\logs\\";
+	const std::wstring log_subfolder = L"\\sunny\\logs\\";
 
 	namespace keys
 	{

@@ -120,6 +120,7 @@ InputMonitor::~InputMonitor()
 		audioInput->RemoveCallback(this);
 		audioInput = nullptr;
 	}
+	Log::info(__func__, "Input '{}' id: {} destroyed", GetLongName(), inputId);
 }
 
 
