@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30717.126
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ATEMHelper", "ATEMHelper.vcxproj", "{0F3CA914-183B-45E3-89C3-EC08A48AC3A4}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0F3CA914-183B-45E3-89C3-EC08A48AC3A4}.Debug|x64.ActiveCfg = Debug|x64
+		{0F3CA914-183B-45E3-89C3-EC08A48AC3A4}.Debug|x64.Build.0 = Debug|x64
+		{0F3CA914-183B-45E3-89C3-EC08A48AC3A4}.Release|x64.ActiveCfg = Release|x64
+		{0F3CA914-183B-45E3-89C3-EC08A48AC3A4}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {559A17EB-FEF8-430D-95B4-F54CAA29F108}
+	EndGlobalSection
+EndGlobal

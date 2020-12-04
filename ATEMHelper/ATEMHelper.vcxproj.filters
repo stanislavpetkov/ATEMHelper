@@ -1,0 +1,65 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Mixer">
+      <UniqueIdentifier>{337932d3-312c-4955-824a-35e79a1dcd5f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="midl">
+      <UniqueIdentifier>{36ddf653-4627-4331-93b4-50e6b5191cdd}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="ATEMHelper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="AtemClass.cpp">
+      <Filter>Mixer</Filter>
+    </ClCompile>
+    <ClCompile Include="ATEMSManager.cpp">
+      <Filter>Mixer</Filter>
+    </ClCompile>
+    <ClCompile Include="BMDSwitcherAPI_i.c">
+      <Filter>midl</Filter>
+    </ClCompile>
+    <ClCompile Include="InputMonitor.cpp">
+      <Filter>Mixer</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="AtemClass.h">
+      <Filter>Mixer</Filter>
+    </ClInclude>
+    <ClInclude Include="ATEMSManager.h">
+      <Filter>Mixer</Filter>
+    </ClInclude>
+    <ClInclude Include="BMDSwitcherAPI_h.h">
+      <Filter>midl</Filter>
+    </ClInclude>
+    <ClInclude Include="InputMonitor.h">
+      <Filter>Mixer</Filter>
+    </ClInclude>
+    <ClInclude Include="AtemClassCallbackIF.h">
+      <Filter>Mixer</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Midl Include="BMDSwitcherAPI.idl">
+      <Filter>midl</Filter>
+    </Midl>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="MainRule.ruleset" />
+  </ItemGroup>
+</Project>
