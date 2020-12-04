@@ -9,7 +9,7 @@
 #include "AtemClassCallbackIF.h"
 #include "BMDSwitcherAPI_h.h"
 #include "InputMonitor.h"
-
+#include "../LibLogging/LibLogging.h"
 
 struct SwitcherEvent
 {
@@ -115,7 +115,7 @@ void AtemClass::impl::atemCtrlFn()
 	auto result = CoInitializeEx(NULL, NULL);
 	if (FAILED(result))
 	{
-		fprintf(stderr, "Initialization of COM failed - result = %08x\n", result);
+		Log::error(__func__, "Initialization of COM failed - result = 0x{:08x}", static_cast<uint32_t>( result));
 		return;
 	}
 
@@ -123,7 +123,7 @@ void AtemClass::impl::atemCtrlFn()
 	result = switcherDiscovery.CoCreateInstance(CLSID_CBMDSwitcherDiscovery, NULL, CLSCTX_ALL);
 	if (result != S_OK)
 	{
-		fprintf(stderr, "A Switcher Discovery instance could not be created.  The Switcher drivers may not be installed.\n");
+		Log::error(__func__, "A Switcher Discovery instance could not be created.  The Switcher drivers may not be installed.");
 		return;
 	}
 
@@ -150,6 +150,9 @@ void AtemClass::impl::atemCtrlFn()
 				switcher = nullptr;
 				continue;
 			}
+
+			Log::info(__func__, "{} Connected", ip_);
+
 			//switcher connected
 			if (S_OK != switcher->AddCallback(this))
 			{
@@ -297,7 +300,8 @@ void AtemClass::impl::atemCtrlFn()
 					}
 				}
 			}
-			printf("Connected\n");
+			
+		
 			continue;
 		}
 		{
@@ -307,7 +311,7 @@ void AtemClass::impl::atemCtrlFn()
 				//do something
 				if (evt.eventType == BMDSwitcherEventType::bmdSwitcherEventTypeDisconnected)
 				{
-					printf("Disconnected\n");
+					Log::error(__func__, "{} Disonnected", ip_);
 					switcher->RemoveCallback(this);
 					inputs.clear();
 

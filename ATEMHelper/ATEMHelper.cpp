@@ -3,8 +3,15 @@
 
 #include <iostream>
 #include "ATEMSManager.h"
+#include "../LibLogging/LibLogging.h"
 int main()
 {
+    Log::SetAsyncLogging(true);
+    Log::SetFileLogging(true);
+    Log::SetODSLogging(true);
+    Log::SetConsoleLogging(true);
+    Log::SetInstanceId("ATEM");
+    Log::SetLogLevel(LOGLEVEL::Debug);
 
     ATEMSManager a;
     while (true) {

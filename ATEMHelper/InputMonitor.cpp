@@ -1,4 +1,5 @@
 #include "InputMonitor.h"
+#include "../LibLogging/LibLogging.h"
 
 //#define RESET_AUDIO_GAIN
 
@@ -20,8 +21,8 @@ InputMonitor::InputMonitor(CComPtr<IBMDSwitcherInput>& input, AtemClassCallbackI
 
 	mInput->AddCallback(this);
 
-
-	printf("Input %I64u - name %s\n", inputId, inputNameLong.c_str());
+	Log::info(__func__, "Input '{}', id {} Created", GetLongName(), inputId);
+	
 }
 void InputMonitor::SetPreviewTally(bool value)
 {
@@ -196,7 +197,8 @@ HRESULT __stdcall InputMonitor::Notify(BMDSwitcherInputEventType eventType)
 #endif
 			}
 
-	printf("Input %I64u - name %s, Tally: pgm: %d, pvw: %d\n", inputId, inputNameLong.c_str(), programTally, previewTally);
+	Log::info(__func__, "Input {} - name {}, Tally: pgm: {}, pvw: {}", inputId, GetLongName(), programTally, previewTally);
+	
 
 	callback_->InputNotification(inputId, eventType);
 	return S_OK;
