@@ -2,6 +2,7 @@
 #include "LoggingClass.h"
 #include "../Common/ThirdParty/nlohmann_json/src/json.hpp"
 #include "../Common/Clock/Clock.h"
+#include <Windows.h>
 
 namespace Log
 {
@@ -34,7 +35,7 @@ namespace Log
 		CLogger::SetConsoleLogging(enable);
 	}
 
-	void LogEvent(const LOGLEVEL level, const LOGTYPE logtype, const char* submoduleName, const char* text)
+	void LogEvent(const LOGLEVEL level, const LOGTYPE logtype, const std::string & submoduleName, const std::string& text)
 	{
 		try
 		{
@@ -46,12 +47,11 @@ namespace Log
 		}
 	}
 
-
-	void LogEvent(const LOGLEVEL level, const LOGTYPE logtype, const char* submoduleName, const char* text, nlohmann::json& data)
+	void LogEventToFileSync(const LOGLEVEL level, const LOGTYPE logtype, const std::string& submoduleName, const std::string& text)
 	{
 		try
 		{
-			return CLogger::LogEvent(level, logtype, submoduleName, __sys_user_name__, text, data);
+			return CLogger::LogEventToFile(level, logtype, submoduleName, __sys_user_name__, text);
 		}
 		catch (...)
 		{
@@ -59,6 +59,8 @@ namespace Log
 		}
 	}
 
+
+	
 	struct PerformanceLog::IMPL
 	{
 		std::string _name;

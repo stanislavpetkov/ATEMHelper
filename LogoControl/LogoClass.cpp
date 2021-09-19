@@ -168,7 +168,7 @@ void to_json(nlohmann::json& j, const ping& mdl)
 
 struct LogoClass::impl
 {
-	const std::string id_;
+	
 	concurrency::concurrent_queue<cmdPack> tx_queue;
 	std::atomic<bool> bStop;
 
@@ -176,6 +176,7 @@ struct LogoClass::impl
 
 	std::atomic<bool> data_lock = false;
 	std::string title_;
+	std::string cardUUID = "";
 	std::string ip_;
 	std::string productModel_;
 	std::thread comms;
@@ -199,9 +200,15 @@ struct LogoClass::impl
 
 
 
-	std::string Id() const
+	std::string Id()
 	{
-		return id_;
+		atomic_lock  l(data_lock);
+		return cardUUID;
+	}
+	std::string Model()
+	{
+		atomic_lock  l(data_lock);
+		return productModel_;
 	}
 
 	std::string Title()
@@ -222,7 +229,19 @@ struct LogoClass::impl
 		atomic_lock  l(data_lock);
 		ip_ = ipaddr;
 	}
-
+	std::vector<bool> GetLogosStatus(const uint32_t pathNo)
+	{
+		atomic_lock  l(data_lock);
+		if (pathNo == 1)
+		{
+			return logoPath1Data;
+		}
+		if (pathNo == 2)
+		{
+			return logoPath2Data;
+		}
+		return {};
+	}
 	std::shared_ptr<easywsclient::WebSocket> buildWebSocket()
 	{
 		return  std::shared_ptr< easywsclient::WebSocket>(easywsclient::WebSocket::from_url(fmt::format("ws://{}:9002?protocolversion=3.0", ip_)));
@@ -241,17 +260,15 @@ struct LogoClass::impl
 
 	std::string makePing(const std::string& cardID)
 	{
-		/*
-
-		{
-   "ping" : {
-	  "productName" : "9923-DSK-LG",
-	  "uuid" : "CA59F65EF77BF7F0BD1F"
-   }
-}
-
-		*/
+		
 		return "{ \"ping\":\"\" }";
+	}
+
+
+	size_t NumLogos()
+	{
+		atomic_lock lock(data_lock);
+		return std::max( logoPath1Data.size(), logoPath2Data.size());
 	}
 
 	bool handleDeviceInfo(nlohmann::json& data)
@@ -407,7 +424,7 @@ struct LogoClass::impl
 		using namespace easywsclient;
 		std::shared_ptr<WebSocket> ws = nullptr;
 		int64_t lastPing = 0;
-		std::string CardUUID = "";
+		
 		bool bWaitingForDeviceInfo = true;
 		std::string local_ip = {};
 		{
@@ -455,8 +472,14 @@ struct LogoClass::impl
 				{
 					cmdPack cmd;
 
+					std::string CardUUID;
+					{
+						atomic_lock lock(data_lock);
+						CardUUID = cardUUID;
+					}
 					while (tx_queue.try_pop(cmd))
 					{
+						
 						switch (cmd.cmd)
 						{
 						case wscmd::ping:
@@ -510,7 +533,7 @@ struct LogoClass::impl
 				ws->poll(5);
 
 
-				ws->dispatch([this, &ws, &lastPing, &CardUUID, &bWaitingForDeviceInfo](const std::string& message) {
+				ws->dispatch([this, &ws, &lastPing,  &bWaitingForDeviceInfo](const std::string& message) {
 
 					if (message.empty()) return;
 
@@ -532,7 +555,10 @@ struct LogoClass::impl
 						const auto devInfoIt = j.find("devinfo_elems");
 						if (devInfoIt != j.end())
 						{
-							CardUUID = j.find("uuid")->get<std::string>();
+							{
+								atomic_lock lock(data_lock);
+								cardUUID = j.find("uuid")->get<std::string>();
+							}
 							if (handleDeviceInfo(*devInfoIt))
 							{
 								bWaitingForDeviceInfo = false;
@@ -689,12 +715,12 @@ struct LogoClass::impl
 }
 
 
-impl(const std::string& id, const std::string& ip);
+impl(const std::string& ip);
 ~impl();
 };
 
-LogoClass::impl::impl(const std::string& id, const std::string& ip) :
-	id_(id)
+LogoClass::impl::impl(const std::string& ip) :
+	cardUUID(ip)
 {
 
 
@@ -712,8 +738,8 @@ LogoClass::impl::~impl()
 
 
 
-LogoClass::LogoClass(const std::string& id, const std::string& ip) :
-	impl_(std::make_shared<impl>(id, ip))
+LogoClass::LogoClass(const std::string& ip) :
+	impl_(std::make_shared<impl>(ip))
 {
 }
 
@@ -735,6 +761,21 @@ std::string LogoClass::Title() const
 std::string LogoClass::Ip() const
 {
 	return impl_->Ip();
+}
+
+std::string LogoClass::Model() const
+{
+	return impl_->Model();
+}
+
+size_t LogoClass::NumLogos() const
+{
+	return impl_->NumLogos();
+}
+
+std::vector<bool> LogoClass::GetLogosStatus(const uint32_t pathNo)
+{
+	return impl_->GetLogosStatus(pathNo);
 }
 
 void LogoClass::Ip(const std::string& ipaddr)

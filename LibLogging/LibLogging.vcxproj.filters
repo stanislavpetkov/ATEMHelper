@@ -19,6 +19,9 @@
     <Filter Include="fmt">
       <UniqueIdentifier>{5f07f0ab-e5cf-47c6-90a7-829b81516e4f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="SysUtils">
+      <UniqueIdentifier>{cb10c9f4-8963-466f-9b7c-5bb0f416f4c3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="LibLogging.cpp">
@@ -30,6 +33,18 @@
     <ClCompile Include="..\fmt\src\os.cc">
       <Filter>fmt</Filter>
     </ClCompile>
+    <ClCompile Include="..\Common\sysUtils_Impl\CPU.cpp">
+      <Filter>SysUtils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\sysUtils_Impl\fs.cpp">
+      <Filter>SysUtils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\sysUtils_Impl\OSutils.cpp">
+      <Filter>SysUtils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\sysUtils_Impl\String.cpp">
+      <Filter>SysUtils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="LoggingTypes.h">
@@ -40,6 +55,18 @@
     </ClInclude>
     <ClInclude Include="LibLogging.h">
       <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\sysUtils_Impl\CPU.h">
+      <Filter>SysUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\sysUtils_Impl\fs.h">
+      <Filter>SysUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\sysUtils_Impl\OSutils.h">
+      <Filter>SysUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\sysUtils_Impl\String.h">
+      <Filter>SysUtils</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

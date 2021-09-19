@@ -1,27 +1,23 @@
 #pragma once
-#pragma once
 
 #include "LoggingTypes.h"
+#include <Windows.h>
 #include <string>
 #include <fstream>
 #include <fmt/format.h>
 #include "../Common/Events.h"
-#include "../Common/SysUtils.h"
-#include "../Common/time_utils.h"
-#ifdef OutputDebugString
-#include "../Common/StringUtils.h"
-#endif
 
+#include "../Common/time_utils.h"
 
 #include "../Common/ThirdParty/nlohmann_json/src/json.hpp"
 
 
 #include <array>
 #include <chrono>
-#include <shared_mutex>
+#include <mutex>
 #include <concurrent_queue.h>
 #include <thread>
-
+#include "../Common/sys_utils.h"
 
 
 struct OutputStreamStruct
@@ -45,7 +41,7 @@ struct OutputStreamStruct
 namespace logger
 {
 
-	const std::wstring log_subfolder = L"\\sunny\\logs\\";
+	const std::wstring log_subfolder = L"\\PlayBoxNeo\\logs\\";
 
 	namespace keys
 	{
@@ -85,10 +81,10 @@ constexpr unsigned char smarker[3] = { 0xEF, 0xBB, 0xBF };
 
 struct MESSAGE_DATA_t
 {
-	LOGTYPE log_type;
-	size_t proc_id;
-	size_t thr_id;
-	LOGLEVEL log_level;
+	LOGTYPE log_type = LOGTYPE::System;
+	size_t proc_id = 0;
+	size_t thr_id = 0;
+	LOGLEVEL log_level = LOGLEVEL::Debug;
 	std::string level_text;
 	std::string timestamp;
 	std::string server_name;
@@ -99,9 +95,8 @@ struct MESSAGE_DATA_t
 	std::string submodule;
 	std::string username;
 	std::string description;
-	nlohmann::json data;
-	MESSAGE_DATA_t() :log_level(LOGLEVEL::Debug), log_type(LOGTYPE::System), proc_id(0), thr_id(0) {};
 };
+
 
 
 
@@ -128,8 +123,8 @@ private:
 
 	std::array<OutputStreamStruct, (uint32_t)LOGTYPE::MaxTypes> logFiles;
 
-	concurrency::concurrent_queue<std::shared_ptr<MESSAGE_DATA_t>> dq;
-	std::shared_mutex mtx;
+	concurrency::concurrent_queue<MESSAGE_DATA_t> dq;
+	std::recursive_mutex mtx;
 
 	void async_transmit_func()
 	{
@@ -140,12 +135,11 @@ private:
 
 		while (true)
 		{
-			std::shared_ptr<MESSAGE_DATA_t> md = nullptr;
+			MESSAGE_DATA_t md{};
 
 			if (dq.try_pop(md))
 			{
-				dump_message(md);
-				md = nullptr;
+				dump_message(md);				
 			}
 			else
 			{
@@ -155,7 +149,7 @@ private:
 		}
 	}
 
-	void dump_message(std::shared_ptr<MESSAGE_DATA_t>& md)
+	void dump_message(const MESSAGE_DATA_t& md)
 	{
 
 		if (useODSLogging || useConsoleLogging || useFileLogging)
@@ -169,13 +163,13 @@ private:
 
 
 
-				auto message = utf8_to_wstring(fmt::format("[{}][{}] {} {} {} {}\n",
+				auto message = pbn::to_wstring(fmt::format("[{}][{}] {} {} {} {}\n",
 					m_applicationName,
 					m_instanceId,
-					md->level_text,
-					md->thr_id,
-					md->submodule,
-					md->description));
+					md.level_text,
+					md.thr_id,
+					md.submodule,
+					md.description));
 
 				OutputDebugStringW(message.c_str());
 			}
@@ -184,11 +178,11 @@ private:
 			if (useConsoleLogging) {
 
 				auto message = fmt::format("{}\t{}\t{}\t{}\t{}\n",
-					md->timestamp,
-					md->level_text,
-					md->thr_id,
-					md->submodule,
-					md->description);
+					md.timestamp,
+					md.level_text,
+					md.thr_id,
+					md.submodule,
+					md.description);
 
 
 				printf("%s", message.c_str());
@@ -203,10 +197,10 @@ private:
 
 
 	CLogger() :
-		m_applicationName(SysUtils::GetFileNameWithoutExtension(SysUtils::ModuleName(0))),
-		m_moduleName(SysUtils::GetCurrentModuleName()),
+		m_applicationName(pbn::fs::get_file_name_without_extension(pbn::OS::GetCurrentModuleFileName())),
+		m_moduleName(pbn::OS::GetCurrentModuleFileName()),
 		m_instanceId(""),
-		m_server_fqdn_name(SysUtils::get_computer_name()),
+		m_server_fqdn_name(pbn::OS::get_computer_name()),
 		useODSLogging(true),
 		useConsoleLogging(true),
 		useFileLogging(false),
@@ -225,7 +219,7 @@ private:
 
 	~CLogger()
 	{
-		
+
 		exit_async = true;
 		we_have_messages.set_all();
 		if (async_transmit.joinable())
@@ -261,14 +255,14 @@ public:
 	static void SetLogLevel(LOGLEVEL level)
 	{
 		CLogger* myinstance = CLogger::GetInstance();
-		std::unique_lock<std::shared_mutex> lock(myinstance->mtx);
+		std::unique_lock lock(myinstance->mtx);
 		myinstance->min_log_level = level;
 	}
 
 	static void SetAsyncLogging(bool enable)
 	{
 		CLogger* myinstance = CLogger::GetInstance();
-		std::unique_lock<std::shared_mutex> lock(myinstance->mtx);
+		std::unique_lock lock(myinstance->mtx);
 
 		if ((enable) && (!myinstance->use_async_mode))
 		{
@@ -295,7 +289,7 @@ public:
 	static void SetODSLogging(bool enable)
 	{
 		CLogger* myinstance = CLogger::GetInstance();
-		std::unique_lock<std::shared_mutex> lock(myinstance->mtx);
+		std::unique_lock lock(myinstance->mtx);
 		myinstance->useODSLogging = enable;
 
 	}
@@ -304,7 +298,7 @@ public:
 	static void SetFileLogging(bool enable)
 	{
 		CLogger* myinstance = CLogger::GetInstance();
-		std::unique_lock<std::shared_mutex> lock(myinstance->mtx);
+		std::unique_lock lock(myinstance->mtx);
 		myinstance->useFileLogging = enable;
 
 	}
@@ -313,21 +307,21 @@ public:
 	static bool GetFileLogging()
 	{
 		CLogger* myinstance = CLogger::GetInstance();
-		std::unique_lock<std::shared_mutex> lock(myinstance->mtx);
+		std::unique_lock lock(myinstance->mtx);
 		return myinstance->useFileLogging;
 	}
 
 	static std::string& GetInstanceId()
 	{
 		CLogger* myinstance = CLogger::GetInstance();
-		std::shared_lock<std::shared_mutex> lock(myinstance->mtx);
+		std::unique_lock lock(myinstance->mtx);
 		return myinstance->m_instanceId;
 	}
 
 	static void SetConsoleLogging(bool enable)
 	{
 		CLogger* myinstance = CLogger::GetInstance();
-		std::unique_lock<std::shared_mutex> lock(myinstance->mtx);
+		std::unique_lock lock(myinstance->mtx);
 		myinstance->useConsoleLogging = enable;
 
 		//SetConsoleOutputCP(CP_UTF8);
@@ -341,19 +335,21 @@ public:
 	static void SetInstanceId(const std::string& insId)
 	{
 		CLogger* myinstance = CLogger::GetInstance();
-		std::unique_lock<std::shared_mutex> lock(myinstance->mtx);
-		if (!myinstance->m_instanceId.empty()) return;
+		std::unique_lock lock(myinstance->mtx);
+		//if (!myinstance->m_instanceId.empty()) return;
 		myinstance->m_instanceId = insId;
+
+		
 	}
 
 
 
-	void LogToFile(const std::shared_ptr<MESSAGE_DATA_t>& md)
+	void LogToFile(const MESSAGE_DATA_t& md)
 	{
-		std::unique_lock<std::shared_mutex> lock(mtx);
+		std::unique_lock lock(mtx);
 
 
-		OutputStreamStruct& ofs = logFiles[(uint32_t)md->log_type];
+		OutputStreamStruct& ofs = logFiles[(uint32_t)md.log_type];
 		auto& strm = ofs.file;
 
 
@@ -375,18 +371,23 @@ public:
 
 		if (!strm.is_open())
 		{
-			std::string logFileName = UTCNow_asString_ISO8601(TIME_STRING_TYPE::YYYYMMDDHHMMSS) + "_" + md->type_text + "_" + m_moduleName + "_[" + std::to_string(md->proc_id) + "]_(" + m_instanceId + ").log";
+			std::string logFileName = UTCNow_asString_ISO8601(TIME_STRING_TYPE::YYYYMMDDHHMMSS) + "_" + md.type_text + "_" + m_moduleName + "_[" + std::to_string(md.proc_id) + "].log";
+
+			pbn::fs::Path logPath(pbn::OS::GetProgramDataFolder());
+			logPath.append(logger::log_subfolder).append(m_applicationName);
+
+			if (!m_instanceId.empty())  logPath.append(m_instanceId);
 
 
-			std::wstring logFilePath = SysUtils::get_logs_folder() + logger::log_subfolder + utf8_to_wstring(m_applicationName) + L"\\";
-			std::wstring full_logname = logFilePath + utf8_to_wstring(logFileName);
-
-
-			if (!SysUtils::CreateDir(logFilePath))
+			if (!pbn::fs::create_dirs(logPath))
 			{
 				OutputDebugStringA("Can not create folder for logging");
+				useFileLogging = false;
 				return;
 			}
+
+			logPath.append(logFileName);
+			std::wstring full_logname = logPath;
 
 			strm.open(full_logname, std::ios::ate | std::ios::binary);
 
@@ -405,16 +406,16 @@ public:
 
 
 		auto theText = fmt::format("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
-			md->timestamp,
-			md->level_text,
-			md->type_text,
-			md->application,
-			md->module_bin,
-			md->module_inst,
-			md->proc_id,
-			md->thr_id,
-			md->submodule,
-			md->description);
+			md.timestamp,
+			md.level_text,
+			md.type_text,
+			md.application,
+			md.module_bin,
+			md.module_inst,
+			md.proc_id,
+			md.thr_id,
+			md.submodule,
+			md.description);
 
 		dataSize = (uint32_t)theText.size();
 		strm.write(theText.c_str(), dataSize);
@@ -433,8 +434,7 @@ public:
 		const LOGTYPE logtype,
 		const std::string& submoduleName,
 		const std::string& userName,
-		std::string text,
-		const nlohmann::json data = nlohmann::json::object())
+		std::string text)
 	{
 
 		if (level >= LOGLEVEL::MaxLevels) return;
@@ -453,33 +453,83 @@ public:
 		uint32_t pid = (uint32_t)GetCurrentProcessId();
 		uint32_t tid = (uint32_t)GetCurrentThreadId();
 
-		std::shared_ptr<MESSAGE_DATA_t> md = std::make_shared<MESSAGE_DATA_t>();
+		MESSAGE_DATA_t md{};
 
-		md->application = myinstance->m_applicationName;
-		md->data = data;
-		md->description = std::move(text);
-		md->level_text = _log_levels_[static_cast<uint32_t>(level)];
-		md->log_level = level;
-		md->log_type = logtype;
-		md->module_bin = myinstance->m_moduleName;
-		md->module_inst = instId;
-		md->proc_id = pid;
-		md->server_name = myinstance->m_server_fqdn_name;
-		md->submodule = submoduleName;;
-		md->thr_id = tid;
-		md->timestamp = UTCNow_asString_ISO8601(TIME_STRING_TYPE::FullWithTimeZone_Microseconds);
-		md->type_text = _log_types_[static_cast<uint32_t>(logtype)];
-		md->username = userName;
+		md.application = myinstance->m_applicationName;
+		md.description = std::move(text);
+		md.level_text = _log_levels_[static_cast<uint32_t>(level)];
+		md.log_level = level;
+		md.log_type = logtype;
+		md.module_bin = myinstance->m_moduleName;
+		md.module_inst = instId;
+		md.proc_id = pid;
+		md.server_name = myinstance->m_server_fqdn_name;
+		md.submodule = submoduleName;;
+		md.thr_id = tid;
+		md.timestamp = UTCNow_asString_ISO8601(TIME_STRING_TYPE::FullWithTimeZone_Microseconds);
+
+
+		md.type_text = (static_cast<uint32_t>(logtype) >= 0) && (static_cast<uint32_t>(logtype) < std::size(_log_types_)) ? _log_types_[static_cast<uint32_t>(logtype)] : "unknown";
+		md.username = userName;
 
 		if (!myinstance->use_async_mode)
 		{
-			std::unique_lock<std::shared_mutex> lock(myinstance->mtx);
-			myinstance->dump_message(md);
-			md = nullptr;
+			std::unique_lock lock(myinstance->mtx);
+			myinstance->dump_message(md);			
 			return;
 		}
 
 		myinstance->dq.push(std::move(md));
 		myinstance->we_have_messages.set_all();
+	};
+
+
+
+	static void LogEventToFile(
+		const LOGLEVEL level,
+		const LOGTYPE logtype,
+		const std::string& submoduleName,
+		const std::string& userName,
+		std::string text)
+	{
+
+		if (level >= LOGLEVEL::MaxLevels) return;
+		if (logtype >= LOGTYPE::MaxTypes) return;
+
+
+		CLogger* myinstance = CLogger::GetInstance();
+		if (!HasLogDestinations(myinstance)) return;
+
+		if ((int)level < (int)myinstance->min_log_level) return;
+
+		std::string& instId(myinstance->GetInstanceId());
+
+
+
+		uint32_t pid = (uint32_t)GetCurrentProcessId();
+		uint32_t tid = (uint32_t)GetCurrentThreadId();
+
+		MESSAGE_DATA_t md{};
+
+		md.application = myinstance->m_applicationName;
+		md.description = std::move(text);
+		md.level_text = _log_levels_[static_cast<uint32_t>(level)];
+		md.log_level = level;
+		md.log_type = logtype;
+		md.module_bin = myinstance->m_moduleName;
+		md.module_inst = instId;
+		md.proc_id = pid;
+		md.server_name = myinstance->m_server_fqdn_name;
+		md.submodule = submoduleName;;
+		md.thr_id = tid;
+		md.timestamp = UTCNow_asString_ISO8601(TIME_STRING_TYPE::FullWithTimeZone_Microseconds);
+
+
+		md.type_text = (static_cast<uint32_t>(logtype) >= 0) && (static_cast<uint32_t>(logtype) < std::size(_log_types_)) ? _log_types_[static_cast<uint32_t>(logtype)] : "unknown";
+		md.username = userName;
+
+
+		
+		myinstance->LogToFile(md);
 	};
 };

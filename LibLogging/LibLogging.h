@@ -14,74 +14,74 @@ namespace Log
 
 	void SetConsoleLogging(bool enable);
 
-	void LogEvent(const LOGLEVEL level, const LOGTYPE logtype, const char* submoduleName, const char* text);
+	void LogEvent(const LOGLEVEL level, const LOGTYPE logtype, const std::string& submoduleName, const std::string& text);
+	void LogEventToFileSync(const LOGLEVEL level, const LOGTYPE logtype, const std::string& submoduleName, const std::string& text);
 
-	inline void debug(const char* submodule, const char* message)
+	inline void debug(const std::string & submodule, const std::string & message)
 	{
 		LogEvent(LOGLEVEL::Debug, LOGTYPE::System, submodule, message);
 	};
 
-	inline void info(const char* submodule, const char* message)
+	inline void info(const std::string & submodule, const std::string & message)
 	{
 		LogEvent(LOGLEVEL::Info, LOGTYPE::System, submodule, message);
 	};
 
-	inline void warn(const char* submodule, const char* message)
+	inline void warn(const std::string & submodule, const std::string & message)
 	{
 		LogEvent(LOGLEVEL::Warn, LOGTYPE::System, submodule, message);
 	};
 
-	inline void error(const char* submodule, const char* message)
+	inline void error(const std::string & submodule, const std::string & message)
 	{
 		LogEvent(LOGLEVEL::Error, LOGTYPE::System, submodule, message);
 	};
 
-	inline void fatal(const char* submodule, const char* message)
+	inline void fatal(const std::string & submodule, const std::string & message)
 	{
 		LogEvent(LOGLEVEL::Fatal, LOGTYPE::System, submodule, message);
 	};
 
-	inline void performance(const char* submodule, const char* message)
+	inline void performance(const std::string & submodule, const std::string & message)
 	{
 		LogEvent(LOGLEVEL::Performance, LOGTYPE::System, submodule, message);
 	};
 
-
 	template <typename... Ts>
-	inline void debug(const char* submodule, const char* format_text, Ts... tail)
+	inline void debug(const std::string & submodule, const std::string & format_text, Ts... tail)
 	{
-		LogEvent(LOGLEVEL::Debug, LOGTYPE::System, submodule, fmt::format(format_text, tail...).c_str());
+		LogEvent(LOGLEVEL::Debug, LOGTYPE::System, submodule, fmt::format(format_text, tail...));
 	};
 
 
 	template <typename... Ts>
-	inline void info(const char* submodule, const char* format_text, Ts... tail)
+	inline void info(const std::string & submodule, const std::string & format_text, Ts... tail)
 	{
-		LogEvent(LOGLEVEL::Info, LOGTYPE::System, submodule, fmt::format(format_text, tail...).c_str());
+		LogEvent(LOGLEVEL::Info, LOGTYPE::System, submodule, fmt::format(format_text, tail...));
 	};
 
 	template <typename... Ts>
-	inline void warn(const char* submodule, const char* format_text, Ts... tail)
+	inline void warn(const std::string & submodule, const std::string & format_text, Ts... tail)
 	{
-		LogEvent(LOGLEVEL::Warn, LOGTYPE::System, submodule, fmt::format(format_text, tail...).c_str());
+		LogEvent(LOGLEVEL::Warn, LOGTYPE::System, submodule, fmt::format(format_text, tail...));
 	};
 
 	template <typename... Ts>
-	inline void error(const char* submodule, const char* format_text, Ts... tail)
+	inline void error(const std::string & submodule, const std::string & format_text, Ts... tail)
 	{
-		LogEvent(LOGLEVEL::Error, LOGTYPE::System, submodule, fmt::format(format_text, tail...).c_str());
+		LogEvent(LOGLEVEL::Error, LOGTYPE::System, submodule, fmt::format(format_text, tail...));
 	};
 
 	template <typename... Ts>
-	inline void fatal(const char* submodule, const char* format_text, Ts... tail)
+	inline void fatal(const std::string & submodule, const std::string & format_text, Ts... tail)
 	{
-		LogEvent(LOGLEVEL::Fatal, LOGTYPE::System, submodule, fmt::format(format_text, tail...).c_str());
+		LogEvent(LOGLEVEL::Fatal, LOGTYPE::System, submodule, fmt::format(format_text, tail...));
 	};
 
 	template <typename... Ts>
-	inline void performance(const char* submodule, const char* format_text, Ts... tail)
+	inline void performance(const std::string & submodule, const std::string & format_text, Ts... tail)
 	{
-		LogEvent(LOGLEVEL::Performance, LOGTYPE::System, submodule, fmt::format(format_text, tail...).c_str());
+		LogEvent(LOGLEVEL::Performance, LOGTYPE::System, submodule, fmt::format(format_text, tail...));
 	};
 
 	class PerformanceLog
@@ -99,43 +99,3 @@ namespace Log
 	};
 
 }
-
-
-#ifdef NLOHMANN_JSON_HPP
-namespace LOG
-{
-	void LogEvent(const LOGLEVEL level, const LOGTYPE logtype, const char* submoduleName, const char* text, nlohmann::json& data);
-
-	template <typename... Ts>
-	inline void debug(const char* submodule, const nlohmann::json& data, const char* format_text, Ts... tail)
-	{
-		LogEvent(LOGLEVEL::Debug, LOGTYPE::System, submodule, fmt::format(format_text, tail...).c_str(), data);
-	};
-
-	template <typename... Ts>
-	inline void info(const char* submodule, const nlohmann::json& data, const char* format_text, Ts... tail)
-	{
-		LogEvent(LOGLEVEL::Info, LOGTYPE::System, submodule, fmt::format(format_text, tail...).c_str(), data);
-	};
-
-	template <typename... Ts>
-	inline void warn(const char* submodule, const nlohmann::json& data, const char* format_text, Ts... tail)
-	{
-		LogEvent(LOGLEVEL::Warn, LOGTYPE::System, submodule, fmt::format(format_text, tail...).c_str(), data);
-	};
-
-	template <typename... Ts>
-	inline void error(const char* submodule, const nlohmann::json& data, const char* format_text, Ts... tail)
-	{
-		LogEvent(LOGLEVEL::Error, LOGTYPE::System, submodule, fmt::format(format_text, tail...).c_str(), data);
-	};
-
-	template <typename... Ts>
-	inline void fatal(const char* submodule, const nlohmann::json& data, const char* format_text, Ts... tail)
-	{
-		LogEvent(LOGLEVEL::Fatal, LOGTYPE::System, submodule, fmt::format(format_text, tail...).c_str(), data);
-	};
-}
-
-#endif
-

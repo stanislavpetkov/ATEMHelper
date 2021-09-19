@@ -19,6 +19,15 @@
     <Filter Include="WebSocket">
       <UniqueIdentifier>{795ab992-e25d-439f-ae2d-ce6edc51f264}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Controller">
+      <UniqueIdentifier>{ecb8a956-7948-444c-9844-0847d6dafb40}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="HTTP">
+      <UniqueIdentifier>{6b9cb573-d574-487b-a0fc-350d88065277}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SysUtils">
+      <UniqueIdentifier>{9f769b4e-8526-429e-ab09-a5bcfd082047}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="LogoControl.cpp">
@@ -30,6 +39,24 @@
     <ClCompile Include="..\Common\WebsocketClient\easywsclient.cpp">
       <Filter>WebSocket</Filter>
     </ClCompile>
+    <ClCompile Include="ControllerClass.cpp">
+      <Filter>Controller</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\HTTP Server\HTTPServer2.cpp">
+      <Filter>HTTP</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\sysUtils_Impl\CPU.cpp">
+      <Filter>SysUtils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\sysUtils_Impl\fs.cpp">
+      <Filter>SysUtils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\sysUtils_Impl\OSutils.cpp">
+      <Filter>SysUtils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\sysUtils_Impl\String.cpp">
+      <Filter>SysUtils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="LogoClass.h">
@@ -37,6 +64,36 @@
     </ClInclude>
     <ClInclude Include="..\Common\WebsocketClient\easywsclient.hpp">
       <Filter>WebSocket</Filter>
+    </ClInclude>
+    <ClInclude Include="ControllerClass.h">
+      <Filter>Controller</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\HTTP Server\HTTPServer2.h">
+      <Filter>HTTP</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\sysUtils_Impl\CPU.h">
+      <Filter>SysUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\sysUtils_Impl\fs.h">
+      <Filter>SysUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\sysUtils_Impl\OSutils.h">
+      <Filter>SysUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\sysUtils_Impl\pbn_concurent_queue.h">
+      <Filter>SysUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\sysUtils_Impl\pbn_concurrency.h">
+      <Filter>SysUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\sysUtils_Impl\stl_utils.h">
+      <Filter>SysUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\sysUtils_Impl\String.h">
+      <Filter>SysUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="BoardAPIModel.h">
+      <Filter>HTTP</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

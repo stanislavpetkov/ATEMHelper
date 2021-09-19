@@ -1,5 +1,17 @@
 
+#pragma comment(lib, "httpapi.lib")
+#pragma comment(lib, "Ws2_32.lib")
+
+#define MacroStr(x)   #x
+#define MacroStr2(x)  MacroStr(x)
+#define Message(desc) __pragma(message(__FILE__ "(" MacroStr2(__LINE__) ") :" #desc))
+
+#include <Winsock2.h>
+
 #define FMT_HEADER_ONLY
+#include <windows.h>
+#include <http.h>
+
 #include "HTTPServer2.h"
 #include "../StringUtils.h"
 #ifndef LOGRECEIVER
@@ -10,6 +22,9 @@
 namespace LOG = SysLoc;
 #endif
 
+#include <mutex>
+#include <shared_mutex>
+#include <concurrent_queue.h>
 #include <algorithm>
 #include <filesystem>
 
@@ -27,6 +42,267 @@ namespace HTTP
 
 	const std::string CacheControl_NoCache = "no-cache, no-store, must-revalidate";
 	const std::string Pragma = "no-cache";
+
+
+	struct ENDPOINT
+	{
+		std::string method;
+		std::string relative_url;
+		HTTP_CALLBACK_FN callbackFn;
+	};
+
+	
+
+
+
+
+
+
+	struct HTTPServer2::impl
+	{
+
+		struct SERVER_CONTEXT
+		{
+			// Session Id
+			HTTP_SERVER_SESSION_ID sessionId;
+			// URL group
+			HTTP_URL_GROUP_ID urlGroupId;
+			// Request queue handle
+			HANDLE hRequestQueue;
+			// IO object
+			PTP_IO Io;
+			// TRUE, when the HTTP Server API driver was initialized
+			BOOL bHttpInit;
+			// TRUE, when we receive a user command to stop the server
+			BOOL bStopServer;
+
+
+			impl* svrClass;
+		};
+
+		struct HTTP_IO_CONTEXT;
+		typedef void(*HTTP_COMPLETION_FUNCTION)(HTTP_IO_CONTEXT*, PTP_IO, ULONG);
+
+		struct HTTP_IO_CONTEXT
+		{
+			OVERLAPPED Overlapped;
+			// Pointer to the completion function
+			HTTP_COMPLETION_FUNCTION pfCompletionFunction;
+			// Structure associated with the url and server directory
+			SERVER_CONTEXT* pServerContext;
+		};
+
+
+		struct HTTP_IORESPONSE
+		{
+			HTTP_IO_CONTEXT __io_context__;
+
+			// Structure associated with the specific response
+			HTTP_RESPONSE http_response;
+
+			// Structure represents an individual block of data either in memory,
+			// in a file, or in the HTTP Server API response-fragment cache.
+			HTTP_DATA_CHUNK http_data_chunk[64];
+
+
+			HTTP_REPLY reply;
+		};
+
+		struct HTTP_IOREQUEST_INTERNAL: public HTTP_IOREQUEST
+		{
+			HTTP_IO_CONTEXT __io_context__;
+			PHTTP_REQUEST __p_http_request__;
+			HTTP_DATA_CHUNK __chunk__;
+			std::vector<char> __http_request_buffer__;
+			std::vector<char> __body_buffer__;
+
+			
+
+			bool getUrlParam(const std::string& paramName, std::string& value) const;
+			std::optional<std::string> getUrlParam(const std::string& paramName) const;
+			std::string get_relative_url() const;
+			std::string get_body_as_string() const;
+			HTTP_VERB method_() const;
+			std::string method_as_string() const;
+			void setParamsAndHeaders();
+
+
+			HTTP_IOREQUEST_INTERNAL();
+		private:
+			void populate_headers();
+			void populate_params();
+			void populate_url();
+		};
+
+		SERVER_CONTEXT server_context;
+		std::string server_name;
+		std::string _base_url;
+
+		std::mutex mtx_requests;
+		std::map<uint64_t, std::shared_ptr<HTTP_IOREQUEST_INTERNAL>> used_http_io_requests;
+		concurrency::concurrent_queue<std::shared_ptr<HTTP_IOREQUEST_INTERNAL>> free_http_io_requests;
+
+
+		std::mutex mtx_reply;
+		std::map<uint64_t, std::shared_ptr<HTTP_IORESPONSE>> used_http_io_replies;
+		concurrency::concurrent_queue<std::shared_ptr<HTTP_IORESPONSE>> free_http_io_replies;
+		std::string _fullFsPath;
+		std::string _indexFile;
+
+		std::shared_mutex m_configMutex;
+
+		std::vector<ENDPOINT> _registered_endpoints;
+
+
+		std::atomic<bool> m_Initialized;
+		uint32_t m_InitializationCode;
+		uint64_t cookie;
+
+
+
+		std::atomic<bool>  m_Started;
+
+		static HTTP_IOREQUEST_INTERNAL* AllocateHttpIoRequest(SERVER_CONTEXT& ServerContext);
+		static void CleanupHttpIoRequest(HTTP_IOREQUEST_INTERNAL* pIoRequest);
+
+		static HTTP_IORESPONSE* AllocateHttpIoResponse(SERVER_CONTEXT* pServerContext);
+		static void CleanupHttpIoResponse(HTTP_IORESPONSE* pIoResponse);
+
+
+
+		static bool InitializeHttpServer(SERVER_CONTEXT& pServerContext);
+		static void IoCompletionCallback(PTP_CALLBACK_INSTANCE Instance, PVOID pContext, PVOID pOverlapped, ULONG IoResult, ULONG_PTR NumberOfBytesTransferred, PTP_IO Io);
+		static bool InitializeServerIo(SERVER_CONTEXT& ServerContext);
+
+		static void UninitializeServerIo(SERVER_CONTEXT& ServerContext);
+		static void UninitializeHttpServer(SERVER_CONTEXT& ServerContext);
+
+		bool StartServer(SERVER_CONTEXT& ServerContext);
+		static void StopServer(SERVER_CONTEXT& ServerContext);
+
+
+		static void ReceiveCompletionCallback(HTTP_IO_CONTEXT* IoContext, PTP_IO Io, ULONG IoResult);
+
+		static void PostNewReceive(SERVER_CONTEXT* pServerContext, PTP_IO Io);
+
+		static void SendCompletionCallback(HTTP_IO_CONTEXT* pIoContext, PTP_IO Io, ULONG IoResult);
+
+		static bool PrepareFileResponse(const std::string& fileName, const std::vector<std::pair<uint64_t, uint64_t>>& ranges, HTTPServer2::impl::HTTP_IORESPONSE* response, std::string& contentRange);
+
+		static void ProcessReceiveAndPostResponse(HTTP_IOREQUEST_INTERNAL* pIoRequest, PTP_IO Io, ULONG IoResult);
+
+		StatusCode Router(HTTP_IOREQUEST_INTERNAL& request, HTTP_REPLY& reply);
+		bool RemoveRequestURLs();
+
+		bool Start();
+
+
+		bool add_endpoint(const std::string& method, const std::string& URL, HTTP_CALLBACK_FN Callback);
+		void remove_endpoint(const std::string& method, const std::string& URL);
+
+		void set_document_root(const std::string& fullFsPath, const std::string& indexFileName = "index.html");
+
+
+		impl(const uint64_t Cookie, const std::string& bind_ip, const uint16_t port, const std::string& ServerName, bool useHttps) :
+			server_context({}),
+			m_Started(false),
+			server_name(ServerName),
+			cookie(Cookie),
+			_fullFsPath(""),
+			_indexFile("index.html")
+		{
+			if (useHttps)
+			{
+				_base_url = "https://";
+			}
+			else
+			{
+				_base_url = "http://";
+			}
+
+			if (bind_ip == "0.0.0.0")
+			{
+				_base_url.append("*");
+			}
+			else
+			{
+				_base_url.append(bind_ip);
+			}
+			_base_url.append(":");
+			_base_url.append(std::to_string(port));
+
+
+			server_context.svrClass = this;
+			if (!InitializeHttpServer(server_context)) goto CleanServer;
+			if (!InitializeServerIo(server_context)) goto CleanIo;
+
+			m_InitializationCode = 0;
+			m_Initialized.store(m_InitializationCode == NOERROR);
+			if (m_Initialized)
+			{
+				auto url = _base_url + "/";
+				auto ws = utf8_to_wstring(url);
+
+				ULONG ulResult = HttpAddUrlToUrlGroup(
+					server_context.urlGroupId,
+					ws.c_str(),
+					(HTTP_URL_CONTEXT)NULL,
+					0);
+
+				if (ulResult != NOERROR)
+				{
+
+					if (ulResult == ERROR_ALREADY_EXISTS)
+					{
+						Log::error(__FUNCTION__, "Error Already Exist {:#x} received in Server Init.Url is /", ulResult);
+						Log::LogEventToFileSync(LOGLEVEL::Error, LOGTYPE::System, "HTTP", fmt::format("Error Already Exist {:#x} received in Server Init.Url is /", ulResult));
+					}
+					else
+						if (ulResult == ERROR_ACCESS_DENIED)
+						{
+							Log::error(__FUNCTION__, "Error Access denied {:#x} received in Server Init.Url is /", ulResult);
+							Log::LogEventToFileSync(LOGLEVEL::Error, LOGTYPE::System, "HTTP", fmt::format("Error Access denied {:#x} received in Server Init.Url is /", ulResult));
+						}
+						else
+							if (ulResult == ERROR_INVALID_PARAMETER)
+							{
+								Log::error(__FUNCTION__, "Error invalid param {:#x} received in Server Init.Url is /", ulResult);
+								Log::LogEventToFileSync(LOGLEVEL::Error, LOGTYPE::System, "HTTP", fmt::format("Error invalid param {:#x} received in Server Init.Url is /", ulResult));
+							}
+							else
+							{
+								Log::error(__FUNCTION__, "Error {:#x} received in Server Init.Url is /", ulResult);
+								Log::LogEventToFileSync(LOGLEVEL::Error, LOGTYPE::System, "HTTP", fmt::format("Error {:#x} received in Server Init.Url is /", ulResult));
+							}
+					m_Initialized.store(false);
+					UninitializeServerIo(server_context);
+					UninitializeHttpServer(server_context);
+
+
+					Log::LogEventToFileSync(LOGLEVEL::Error, LOGTYPE::System, "HTTP", "BIND FAILED");
+					throw std::logic_error("Server Can not bind twice");
+				}
+
+
+			}
+			return;
+
+
+		CleanIo:
+			UninitializeServerIo(server_context);
+		CleanServer:
+			UninitializeHttpServer(server_context);
+		}
+
+
+		~impl()
+		{
+			StopServer(server_context);
+			RemoveRequestURLs();
+			UninitializeServerIo(server_context);
+			UninitializeHttpServer(server_context);
+		}
+	};
 
 
 	inline bool iequals(const std::string& ext, const std::string& search)
@@ -81,14 +357,14 @@ namespace HTTP
 	{
 		switch (reply.type)
 		{
-		case rt_JSON: return "application/json; charset=utf-8";
-		case rt_HTML: return "text/html";
-		case rt_TEXT: return "text/plain";
-		case rt_XML: return "application/xml";
-		case rt_FILE: return get_mime_type_from_file_reply(reply);
-		case rt_OCTET:return "application/octet-stream";
-		case rt_JPEG:return "image/jpeg";
-		case rt_CustomMime:return reply.mimeType;
+		case Reply_type_t::rt_JSON: return "application/json; charset=utf-8";
+		case Reply_type_t::rt_HTML: return "text/html";
+		case Reply_type_t::rt_TEXT: return "text/plain";
+		case Reply_type_t::rt_XML: return "application/xml";
+		case Reply_type_t::rt_FILE: return get_mime_type_from_file_reply(reply);
+		case Reply_type_t::rt_OCTET:return "application/octet-stream";
+		case Reply_type_t::rt_JPEG:return "image/jpeg";
+		case Reply_type_t::rt_CustomMime:return reply.mimeType;
 
 		default:
 			return "application/octet-stream";
@@ -114,80 +390,14 @@ namespace HTTP
 		headers.insert(std::make_pair(key, value));
 	}
 
-	//StatusCode HTTP_REPLY::MakeError(StatusCode status, const int ErrCode, const std::string& category, const std::string& message, const std::string& DevMessage, nlohmann::json Data)
-	//{
-	//	return MakeErrorExtra(status, ErrCode, category, message, DevMessage, Data);
-	//}
 
-	//StatusCode HTTP_REPLY::MakeError(StatusCode status, const std::error_code& ec, const std::string& DevMessage, nlohmann::json Data)
-	//{
-	//	return MakeErrorExtra(status, ec.value(), ec.category().name(), ec.message(), DevMessage, Data);		
-	//}
-
-	//StatusCode HTTP_REPLY::MakeError(StatusCode status, const std::error_code& ec, const std::string& Message, const std::string& DevMessage, nlohmann::json Data)
-	//{
-	//	return MakeErrorExtra(status, ec.value(), ec.category().name(), Message, DevMessage, Data);
-	//}
-
-	//StatusCode HTTP_REPLY::StateError(const std::error_code& ec, const std::string& Message, const std::string& DevMessage, nlohmann::json Data)
-	//{	
-	//	type = Reply_type_t::rt_JSON;
-	//	auto data = nlohmann::json::object();
-	//	reason = "";
-	//	headers.clear();
-
-	//	data["error"] = nlohmann::json::object();
-	//	data["error"]["code"] = ec.value();
-	//	data["error"]["code_description"] = ec.message().empty()? status_code(StatusCode::client_error_conflict): ec.message(); 
-	//	data["error"]["category"] = ec.category().name();
-	//	data["error"]["message"] = Message;
-	//	data["error"]["dev_message"] = DevMessage.empty() ? Message.empty()?status_code(StatusCode::client_error_conflict): Message : DevMessage;
-	//	data["error"]["data"] = Data;
-	//	message = data.dump();
-	//	return StatusCode::client_error_conflict;
-	//}
-
-	//StatusCode HTTP_REPLY::ArgumentError(const std::error_code& ec, const std::string& Message, const std::string& DevMessage, nlohmann::json Data)
-	//{
-	//	type = Reply_type_t::rt_JSON;
-	//	auto data = nlohmann::json::object();
-	//	reason = "";
-	//	headers.clear();
-
-	//	data["error"] = nlohmann::json::object();
-	//	data["error"]["code"] = ec.value();
-	//	data["error"]["code_description"] = ec.message().empty() ? status_code(StatusCode::client_error_conflict) : ec.message();
-	//	data["error"]["category"] = ec.category().name();
-	//	data["error"]["message"] = Message;
-	//	data["error"]["dev_message"] = DevMessage.empty() ? Message.empty() ? status_code(StatusCode::client_error_conflict) : Message : DevMessage;
-	//	data["error"]["data"] = Data;
-	//	message = data.dump();
-	//	return StatusCode::client_error_bad_request;
-	//}
-	//StatusCode HTTP_REPLY::MakeErrorExtra(StatusCode status, int ErrorCode, const std::string& ErrorCategory, const std::string& ErrorMessage, const std::string& DevMessage, nlohmann::json Data)
-	//{
-	//	type = Reply_type_t::rt_JSON;
-	//	auto data = nlohmann::json::object();
-	//	reason = "";
-	//	headers.clear();
-
-	//	data["error"] = nlohmann::json::object();
-	//	data["error"]["code"] = ErrorCode;
-	//	data["error"]["code_description"] = ErrorMessage.empty() ? status_code(status) : ErrorMessage;
-	//	data["error"]["category"] = ErrorCategory;
-	//	data["error"]["message"] = ErrorMessage.empty() ? status_code(status) : ErrorMessage;
-	//	data["error"]["dev_message"] = DevMessage.empty() ? status_code(status) : DevMessage;
-	//	data["error"]["data"] = Data;
-	//	message = data.dump();
-	//	return status;
-	//}
 
 
 	/* ****************************************** */
 	/* ********** HTTP_IOREQUEST **************** */
 	/* ****************************************** */
 
-	HTTP_IOREQUEST::HTTP_IOREQUEST() :
+	HTTPServer2::impl::HTTP_IOREQUEST_INTERNAL::HTTP_IOREQUEST_INTERNAL() :
 		__http_request_buffer__(REQUEST_BUFFER_SIZE),
 		__body_buffer__(REQUEST_BUFFER_SIZE),
 		__chunk__({}),
@@ -201,14 +411,30 @@ namespace HTTP
 
 
 
-	std::string HTTP_IOREQUEST::get_relative_url() const
+	bool HTTPServer2::impl::HTTP_IOREQUEST_INTERNAL::getUrlParam(const std::string& paramName, std::string& value) const
+	{
+		auto itr = params.find(paramName);
+		if (itr == params.end()) return false;
+
+		value = itr->second;
+		return true;
+	}
+
+	std::optional<std::string> HTTPServer2::impl::HTTP_IOREQUEST_INTERNAL::getUrlParam(const std::string& paramName) const
+	{
+		auto itr = params.find(paramName);
+		if (itr == params.end()) return {};
+		return itr->second;
+	}
+
+	std::string HTTPServer2::impl::HTTP_IOREQUEST_INTERNAL::get_relative_url() const
 	{
 		auto url_start = __p_http_request__->CookedUrl.pAbsPath;
 		auto sz = __p_http_request__->CookedUrl.AbsPathLength / sizeof(url_start[0]);
 		return wstring_to_utf8(std::wstring(url_start, sz));
 	}
 
-	std::string HTTP_IOREQUEST::get_body_as_string() const
+	std::string HTTPServer2::impl::HTTP_IOREQUEST_INTERNAL::get_body_as_string() const
 	{
 		std::string body = "";
 		if (__p_http_request__->EntityChunkCount == 0) return body;
@@ -227,13 +453,13 @@ namespace HTTP
 
 
 
-	HTTP_VERB HTTP_IOREQUEST::method() const
+	HTTP_VERB HTTPServer2::impl::HTTP_IOREQUEST_INTERNAL::method_() const
 	{
 		return __p_http_request__->Verb;
 	}
 
 
-	std::string HTTP_IOREQUEST::method_as_string() const
+	std::string HTTPServer2::impl::HTTP_IOREQUEST_INTERNAL::method_as_string() const
 	{
 
 		switch (__p_http_request__->Verb)
@@ -264,15 +490,18 @@ namespace HTTP
 		return "UNKNOWN";
 	}
 
-	void HTTP_IOREQUEST::setParamsAndHeaders()
+	void HTTPServer2::impl::HTTP_IOREQUEST_INTERNAL::setParamsAndHeaders()
 	{
 		populate_headers();
 		populate_params();
+		populate_url();
+		method = method_as_string();
+		host = wstring_to_utf8( std::wstring(__p_http_request__->CookedUrl.pHost, __p_http_request__->CookedUrl.HostLength / sizeof(wchar_t)));
 		body = get_body_as_string();
 	}
 
 
-	static std::string request_header_name(HTTP_HEADER_ID id)
+	std::string request_header_name(HTTP_HEADER_ID id)
 	{
 		switch (id)
 		{
@@ -330,7 +559,7 @@ namespace HTTP
 	}
 
 
-	void HTTP_IOREQUEST::populate_headers()
+	void HTTPServer2::impl::HTTP_IOREQUEST_INTERNAL::populate_headers()
 	{
 		headers.clear();
 		for (size_t i = 0; i < HttpHeaderRequestMaximum; i++)
@@ -546,7 +775,7 @@ namespace HTTP
 
 
 
-	void HTTP_IOREQUEST::populate_params()
+	void HTTPServer2::impl::HTTP_IOREQUEST_INTERNAL::populate_params()
 	{
 		params.clear();
 		if (__p_http_request__->CookedUrl.QueryStringLength < 1) return;
@@ -597,6 +826,14 @@ namespace HTTP
 		//}
 	}
 
+	void HTTPServer2::impl::HTTP_IOREQUEST_INTERNAL::populate_url()
+	{
+		
+		auto url_start = __p_http_request__->CookedUrl.pAbsPath;
+		auto sz = __p_http_request__->CookedUrl.AbsPathLength / sizeof(url_start[0]);
+		relativeUrl = wstring_to_utf8(std::wstring(url_start, sz));
+	}
+
 	/* ****************************************** */
 	/* ************* HTTPServer2 **************** */
 	/* ****************************************** */
@@ -608,19 +845,19 @@ namespace HTTP
 	/* ******** Request Allocate/Cleanup ******** */
 	/* ****************************************** */
 
-	HTTP_IOREQUEST* HTTPServer2::AllocateHttpIoRequest(
+	HTTPServer2::impl::HTTP_IOREQUEST_INTERNAL* HTTPServer2::impl::AllocateHttpIoRequest(
 		SERVER_CONTEXT& ServerContext
 	)
 	{
-		HTTPServer2* svr = ServerContext.svrClass;
+		auto svr = ServerContext.svrClass;
 
-		std::shared_ptr<HTTP_IOREQUEST> pIoRequest;
+		std::shared_ptr<HTTPServer2::impl::HTTP_IOREQUEST_INTERNAL> pIoRequest;
 
 
 		{
 			if (!svr->free_http_io_requests.try_pop(pIoRequest))
 			{
-				pIoRequest = std::make_shared<HTTP_IOREQUEST>();
+				pIoRequest = std::make_shared<HTTP_IOREQUEST_INTERNAL>();
 			}
 
 
@@ -631,7 +868,7 @@ namespace HTTP
 			uint64_t memPtr = (uint64_t)pIoRequest.get();
 			{
 				std::lock_guard<std::mutex> lockit(svr->mtx_requests);
-				ServerContext.svrClass->used_http_io_requests.insert(std::pair<uint64_t, std::shared_ptr<HTTP_IOREQUEST>>(memPtr, pIoRequest));
+				ServerContext.svrClass->used_http_io_requests.insert(std::pair<uint64_t, std::shared_ptr<HTTP_IOREQUEST_INTERNAL>>(memPtr, pIoRequest));
 			}
 		}
 
@@ -648,9 +885,9 @@ namespace HTTP
 		return pIoRequest.get(); //the share_ptr owner is used_http_io_requests so this should be safe
 	}
 
-	void HTTPServer2::CleanupHttpIoRequest(HTTP_IOREQUEST* pIoRequest)
+	void HTTPServer2::impl::CleanupHttpIoRequest(HTTPServer2::impl::HTTP_IOREQUEST_INTERNAL* pIoRequest)
 	{
-		HTTPServer2* svr = pIoRequest->__io_context__.pServerContext->svrClass;
+		auto * svr = pIoRequest->__io_context__.pServerContext->svrClass;
 		std::lock_guard<std::mutex> lockit(svr->mtx_requests);
 
 		uint64_t memPtr = (uint64_t)pIoRequest;
@@ -670,11 +907,11 @@ namespace HTTP
 	/* ****************************************** */
 
 
-	HTTP_IORESPONSE* HTTPServer2::AllocateHttpIoResponse(SERVER_CONTEXT* pServerContext)
+	HTTPServer2::impl::HTTP_IORESPONSE* HTTPServer2::impl::AllocateHttpIoResponse(SERVER_CONTEXT* pServerContext)
 	{
 
 
-		HTTPServer2* svr = pServerContext->svrClass;
+		auto* svr = pServerContext->svrClass;
 
 		std::shared_ptr<HTTP_IORESPONSE> pIoResponse;
 
@@ -700,7 +937,7 @@ namespace HTTP
 		ZeroMemory(&(pIoResponse->http_data_chunk), sizeof(pIoResponse->http_data_chunk));
 		ZeroMemory(&(pIoResponse->http_response), sizeof(pIoResponse->http_response));
 		pIoResponse->reply.message = "";
-		pIoResponse->reply.type = rt_Unknown;
+		pIoResponse->reply.type = Reply_type_t::rt_Unknown;
 		pIoResponse->reply.reason = "";
 		pIoResponse->reply.headers = {};
 
@@ -724,12 +961,12 @@ namespace HTTP
 
 
 
-	void HTTPServer2::CleanupHttpIoResponse(HTTP_IORESPONSE* pIoResponse)
+	void HTTPServer2::impl::CleanupHttpIoResponse(HTTP_IORESPONSE* pIoResponse)
 	{
 
 
 
-		HTTPServer2* svr = pIoResponse->__io_context__.pServerContext->svrClass;
+		auto* svr = pIoResponse->__io_context__.pServerContext->svrClass;
 		std::lock_guard<std::mutex> lockit(svr->mtx_reply);
 
 		uint64_t memPtr = (uint64_t)pIoResponse;
@@ -746,96 +983,13 @@ namespace HTTP
 
 
 	HTTPServer2::HTTPServer2(const uint64_t Cookie, const std::string& bind_ip, const uint16_t port, const std::string& ServerName, bool useHttps) :
-		server_context({}),
-		m_Started(false),
-		server_name(ServerName),
-		cookie(Cookie),
-		_fullFsPath(""),
-		_indexFile("index.html")
+		impl_(std::make_shared<impl>(Cookie, bind_ip, port, ServerName, useHttps))
 	{
-		if (useHttps)
-		{
-			_base_url = "https://";
-		}
-		else
-		{
-			_base_url = "http://";
-		}
-
-		if (bind_ip == "0.0.0.0")
-		{
-			_base_url.append("*");
-		}
-		else
-		{
-			_base_url.append(bind_ip);
-		}
-		_base_url.append(":");
-		_base_url.append(std::to_string(port));
-
-
-		server_context.svrClass = this;
-		if (!InitializeHttpServer(server_context)) goto CleanServer;
-		if (!InitializeServerIo(server_context)) goto CleanIo;
-
-		m_InitializationCode = 0;
-		m_Initialized.store(m_InitializationCode == NOERROR);
-		if (m_Initialized)
-		{
-			auto url = _base_url + "/";
-			auto ws = utf8_to_wstring(url);
-
-			ULONG ulResult = HttpAddUrlToUrlGroup(
-				server_context.urlGroupId,
-				ws.c_str(),
-				(HTTP_URL_CONTEXT)NULL,
-				0);
-
-			if (ulResult != NOERROR)
-			{
-
-				if (ulResult == ERROR_ALREADY_EXISTS)
-				{
-					Log::error(__FUNCTION__, "Error Already Exist {:#x} received in Server Init.Url is /", ulResult);
-				}
-				else
-					if (ulResult == ERROR_ACCESS_DENIED)
-					{
-						Log::error(__FUNCTION__, "Error Access denied {:#x} received in Server Init.Url is /", ulResult);
-					}
-					else
-						if (ulResult == ERROR_INVALID_PARAMETER)
-						{
-							Log::error(__FUNCTION__, "Error invalid param {:#x} received in Server Init.Url is /", ulResult);
-						}
-						else
-						{
-							Log::error(__FUNCTION__, "Error {:#x} received in Server Init.Url is /", ulResult);
-						}
-				m_Initialized.store(false);
-				UninitializeServerIo(server_context);
-				UninitializeHttpServer(server_context);
-
-				throw std::logic_error("Server Can not bind twice");
-			}
-
-
-		}
-		return;
-
-
-	CleanIo:
-		UninitializeServerIo(server_context);
-	CleanServer:
-		UninitializeHttpServer(server_context);
-
-
 	}
 
 
-	void HTTPServer2::StopServer(
-		SERVER_CONTEXT& ServerContext
-	)
+	
+	void HTTPServer2::impl::StopServer(SERVER_CONTEXT& ServerContext)
 	{
 		if (ServerContext.hRequestQueue != NULL)
 		{
@@ -853,7 +1007,7 @@ namespace HTTP
 	}
 
 
-	void HTTPServer2::UninitializeServerIo(
+	void HTTPServer2::impl::UninitializeServerIo(
 		SERVER_CONTEXT& ServerContext
 	)
 	{
@@ -870,7 +1024,7 @@ namespace HTTP
 		}
 	}
 
-	void HTTPServer2::UninitializeHttpServer(
+	void HTTPServer2::impl::UninitializeHttpServer(
 		SERVER_CONTEXT& ServerContext
 	)
 	{
@@ -895,15 +1049,36 @@ namespace HTTP
 
 	HTTPServer2::~HTTPServer2()
 	{
-		StopServer(server_context);
-		RemoveRequestURLs();
-		UninitializeServerIo(server_context);
-		UninitializeHttpServer(server_context);
+		impl_ = nullptr;
+	}
+
+	bool HTTPServer2::Start()
+	{
+		if (impl_ == nullptr) return false;
+		return impl_->Start();
+	}
+
+	bool HTTPServer2::add_endpoint(const std::string& method, const std::string& URL, HTTP_CALLBACK_FN Callback)
+	{
+		if (impl_ == nullptr) return false;
+		return impl_->add_endpoint(method,URL,Callback);
+	}
+
+	void HTTPServer2::remove_endpoint(const std::string& method, const std::string& URL)
+	{
+		if (impl_ == nullptr) return;
+		return impl_->remove_endpoint(method, URL);
+	}
+
+	void HTTPServer2::set_document_root(const std::string& fullFsPath, const std::string& indexFileName)
+	{
+		if (impl_ == nullptr) return;
+		return impl_->set_document_root(fullFsPath, indexFileName);
 	}
 
 
 
-	bool HTTPServer2::InitializeHttpServer(
+	bool HTTPServer2::impl::InitializeHttpServer(
 		SERVER_CONTEXT& ServerContext
 	)
 	{
@@ -1007,18 +1182,18 @@ namespace HTTP
 	}
 
 
-	void HTTPServer2::ReceiveCompletionCallback(
+	void HTTPServer2::impl::ReceiveCompletionCallback(
 		HTTP_IO_CONTEXT* IoContext,
 		PTP_IO Io,
 		ULONG IoResult
 	)
 	{
-		HTTP_IOREQUEST* pIoRequest;
+		HTTP_IOREQUEST_INTERNAL* pIoRequest;
 		SERVER_CONTEXT* pServerContext;
 
 
 		pIoRequest = CONTAINING_RECORD(IoContext,
-			HTTP_IOREQUEST,
+			HTTP_IOREQUEST_INTERNAL,
 			__io_context__);
 
 		pServerContext = pIoRequest->__io_context__.pServerContext;
@@ -1086,17 +1261,17 @@ namespace HTTP
 
 		/*startFilePos = 10;
 		endFilePos = 30;
-*/
+	*/
 
 	}
 
 
-	void HTTPServer2::PostNewReceive(
+	void HTTPServer2::impl::PostNewReceive(
 		SERVER_CONTEXT* pServerContext,
 		PTP_IO Io
 	)
 	{
-		HTTP_IOREQUEST* pIoRequest;
+		HTTP_IOREQUEST_INTERNAL* pIoRequest;
 		ULONG Result;
 
 		pIoRequest = AllocateHttpIoRequest(*pServerContext);
@@ -1136,7 +1311,7 @@ namespace HTTP
 
 
 
-	void HTTPServer2::SendCompletionCallback(
+	void HTTPServer2::impl::SendCompletionCallback(
 		HTTP_IO_CONTEXT* pIoContext,
 		PTP_IO Io,
 		ULONG IoResult
@@ -1154,7 +1329,7 @@ namespace HTTP
 		CleanupHttpIoResponse(pIoResponse);
 	}
 
-	bool PrepareFileResponse(const std::string& fileName, const std::vector < std::pair<uint64_t, uint64_t>>& ranges, HTTP_IORESPONSE* response, std::string& contentRange)
+	bool HTTPServer2::impl::PrepareFileResponse(const std::string& fileName, const std::vector < std::pair<uint64_t, uint64_t>>& ranges, HTTPServer2::impl::HTTP_IORESPONSE* response, std::string& contentRange)
 	{
 		std::wstring fn = utf8_to_wstring(fileName);
 		response->reply.reason.clear();
@@ -1231,8 +1406,8 @@ namespace HTTP
 		return true;
 	}
 
-	void HTTPServer2::ProcessReceiveAndPostResponse(
-		HTTP_IOREQUEST* pIoRequest,
+	void HTTPServer2::impl::ProcessReceiveAndPostResponse(
+		HTTPServer2::impl::HTTP_IOREQUEST_INTERNAL* pIoRequest,
 		PTP_IO Io,
 		ULONG IoResult
 	)
@@ -1411,11 +1586,11 @@ namespace HTTP
 
 		pIoResponse->http_response.EntityChunkCount = 0;
 		std::string content_range{};
-		if (pIoResponse->reply.type != rt_FILE)
+		if (pIoResponse->reply.type != Reply_type_t::rt_FILE)
 		{
 			if (pIoResponse->reply.message.empty())
 			{
-				pIoResponse->reply.type = rt_TEXT;
+				pIoResponse->reply.type = Reply_type_t::rt_TEXT;
 				pIoResponse->http_response.EntityChunkCount = 0;
 			}
 			else
@@ -1486,7 +1661,7 @@ namespace HTTP
 
 
 
-		if (pIoResponse->reply.type == rt_FILE)
+		if (pIoResponse->reply.type == Reply_type_t::rt_FILE)
 		{
 			if (!content_range.empty())
 			{
@@ -1498,7 +1673,7 @@ namespace HTTP
 
 		StartThreadpoolIo(Io);
 		unsigned long flags = 0;
-		if (pIoResponse->reply.type != rt_FILE)
+		if (pIoResponse->reply.type != Reply_type_t::rt_FILE)
 		{
 			flags = HTTP_SEND_RESPONSE_FLAG_BUFFER_DATA;
 			Result = HttpSendHttpResponse(
@@ -1559,16 +1734,16 @@ namespace HTTP
 
 	}
 
-	StatusCode HTTPServer2::Router(HTTP_IOREQUEST& request, HTTP_REPLY& reply)
+	StatusCode HTTPServer2::impl::Router(HTTPServer2::impl::HTTP_IOREQUEST_INTERNAL& request, HTTP_REPLY& reply)
 	{
 		//cookie
 		std::shared_lock<std::shared_mutex> lockit(m_configMutex);
 		std::string _rela_url = request.get_relative_url();
-		std::string _method = request.method_as_string();
+		
 
 
 
-		if ((_rela_url == "/help/api_urls") && (_method == HTTP::methods::s_get_method))
+		if ((_rela_url == "/help/api_urls") && (request.method == HTTP::methods::s_get_method))
 		{
 			auto response = nlohmann::json::array();
 			for (auto& ep : _registered_endpoints)
@@ -1579,7 +1754,7 @@ namespace HTTP
 				response.push_back(jsLink);
 			}
 			reply.message = response.dump();
-			reply.type = rt_JSON;
+			reply.type = Reply_type_t::rt_JSON;
 			return StatusCode::success_ok;
 		}
 
@@ -1588,12 +1763,13 @@ namespace HTTP
 			return reply.DoError<StatusCode>(StatusCode::client_error_not_found, { StatusCode::client_error_not_found, fmt::format("URL:: {} not found on this server", request.get_relative_url()) });
 		}
 
-		auto ep = std::find_if(_registered_endpoints.begin(), _registered_endpoints.end(), [&_method, &_rela_url](const ENDPOINT& ep) {
-			return (ep.method == _method) && (ep.relative_url == _rela_url);
+		auto ep = std::find_if(_registered_endpoints.begin(), _registered_endpoints.end(), [&request, &_rela_url](const ENDPOINT& ep) {
+			return (ep.method == request.method) && (ep.relative_url == _rela_url);
 			});
 		if (ep != _registered_endpoints.end())
 		{
 			//we are checking for nullptr on add
+			
 			return ep->callbackFn(cookie, request, reply);
 		}
 
@@ -1602,7 +1778,7 @@ namespace HTTP
 
 		for (auto ep = _registered_endpoints.begin(); ep != _registered_endpoints.end(); ep++)
 		{
-			if (_method != ep->method) continue;
+			if (request.method != ep->method) continue;
 
 			auto& uridef = ep->relative_url;
 			localParams.clear();
@@ -1751,7 +1927,7 @@ namespace HTTP
 			file_status stat = std::filesystem::status(utf8_to_wstring(file_path));
 			if (stat.type() == file_type::regular)
 			{
-				reply.type = rt_FILE;
+				reply.type = Reply_type_t::rt_FILE;
 				reply.message = file_path;
 				return StatusCode::success_ok;
 			}
@@ -1769,7 +1945,7 @@ namespace HTTP
 
 
 
-	bool HTTPServer2::StartServer(
+	bool HTTPServer2::impl::StartServer(
 		SERVER_CONTEXT& ServerContext
 	)
 	{
@@ -1802,7 +1978,7 @@ namespace HTTP
 
 		for (; wRequestsCounter > 0; --wRequestsCounter)
 		{
-			HTTP_IOREQUEST* pIoRequest = nullptr;
+			HTTP_IOREQUEST_INTERNAL* pIoRequest = nullptr;
 			ULONG Result;
 
 			pIoRequest = AllocateHttpIoRequest(ServerContext);
@@ -1847,7 +2023,7 @@ namespace HTTP
 	}
 
 
-	static void CALLBACK IoCompletionCallback(
+	void CALLBACK HTTPServer2::impl::IoCompletionCallback(
 		PTP_CALLBACK_INSTANCE Instance,
 		PVOID pContext,
 		PVOID pOverlapped,
@@ -1871,7 +2047,7 @@ namespace HTTP
 		pIoContext->pfCompletionFunction(pIoContext, Io, IoResult);
 	}
 
-	bool HTTPServer2::InitializeServerIo(
+	bool HTTPServer2::impl::InitializeServerIo(
 		SERVER_CONTEXT& ServerContext
 	)
 	{
@@ -1925,7 +2101,7 @@ namespace HTTP
 
 
 
-	bool HTTPServer2::RemoveRequestURLs()
+	bool HTTPServer2::impl::RemoveRequestURLs()
 	{
 		if (!m_Initialized.load()) return false;
 		std::unique_lock<std::shared_mutex> lockit(m_configMutex);
@@ -1939,7 +2115,7 @@ namespace HTTP
 		return true;
 	}
 
-	bool HTTPServer2::add_endpoint(const std::string& method, const std::string& URL, HTTP_CALLBACK_FN Callback)
+	bool HTTPServer2::impl::add_endpoint(const std::string& method, const std::string& URL, HTTP_CALLBACK_FN Callback)
 	{
 		if (Callback == nullptr)
 		{
@@ -1970,7 +2146,7 @@ namespace HTTP
 		return true;
 	}
 
-	void HTTPServer2::remove_endpoint(const std::string& method, const std::string& URL)
+	void HTTPServer2::impl::remove_endpoint(const std::string& method, const std::string& URL)
 	{
 		if (!m_Initialized.load()) return;
 		std::unique_lock<std::shared_mutex> lockit(m_configMutex);
@@ -1984,13 +2160,13 @@ namespace HTTP
 		}
 	}
 
-	void HTTPServer2::set_document_root(const std::string& fullFsPath, const std::string& indexFileName)
+	void HTTPServer2::impl::set_document_root(const std::string& fullFsPath, const std::string& indexFileName)
 	{
 		_fullFsPath = fullFsPath;
 		_indexFile = indexFileName;
 	}
 
-	bool HTTPServer2::Start()
+	bool HTTPServer2::impl::Start()
 	{
 		if (!m_Initialized.load()) return false;
 		std::unique_lock<std::shared_mutex> lockit(m_configMutex);
@@ -2008,5 +2184,29 @@ namespace HTTP
 		m_Started.store(true);
 		return m_Started;
 	}
+
+	bool HTTP_IOREQUEST::getUrlParam(const std::string& paramName, std::string& value) const
+	{
+		auto itr = params.find(paramName);
+		if (itr == params.end()) return false;
+
+		value = itr->second;
+		return true;
+	}
+
+	std::optional<std::string> HTTP_IOREQUEST::getUrlParam(const std::string& paramName) const
+	{
+		auto itr = params.find(paramName);
+		if (itr == params.end()) return {};
+		return itr->second;
+	}
+
+	std::string HTTP_IOREQUEST::get_relative_url() const
+	{
+		
+		return relativeUrl;
+	}
+
+
 
 }
