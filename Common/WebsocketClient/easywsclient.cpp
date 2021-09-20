@@ -103,12 +103,16 @@ namespace { // private module-only namespace
 		struct addrinfo* p;
 		int ret;
 		socket_t sockfd = INVALID_SOCKET;
-		char sport[16];
+		
 		memset(&hints, 0, sizeof(hints));
 		hints.ai_family = AF_UNSPEC;
 		hints.ai_socktype = SOCK_STREAM;
-		snprintf(sport, 16, "%d", port);
-		if ((ret = getaddrinfo(hostname.c_str(), sport, &hints, &result)) != 0)
+		
+
+
+		std::string sport = std::to_string(port);
+
+		if ((ret = getaddrinfo(hostname.c_str(), sport.c_str(), &hints, &result)) != 0)
 		{
 			Log::error(__func__, "getaddrinfo: {}", gai_strerrorA(ret));
 			return 1;
@@ -249,7 +253,7 @@ namespace { // private module-only namespace
 					rxbuf.resize(N);
 					closesocket(sockfd);
 					readyState = CLOSED;
-					fputs(ret < 0 ? "Connection error!\n" : "Connection closed!\n", stderr);
+					Log::warn(__func__, "{}", ret < 0 ? "Connection error!" : "Connection closed!");
 					break;
 				}
 				else {
@@ -265,7 +269,7 @@ namespace { // private module-only namespace
 				else if (ret <= 0) {
 					closesocket(sockfd);
 					readyState = CLOSED;
-					fputs(ret < 0 ? "Connection error!\n" : "Connection closed!\n", stderr);
+					Log::warn(__func__, "{}", ret < 0 ? "Connection error!" : "Connection closed!");
 					break;
 				}
 				else {
