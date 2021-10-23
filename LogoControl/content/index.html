@@ -1,0 +1,353 @@
+<html>
+<head>
+    <title>Logo Controller</title>
+    <style>
+        .logo_controller {
+            width: 100%;
+            border: 1px solid rgb(100 100 100);
+            margin-bottom: 10px;            
+        }
+
+        .block_row {
+            height: 100%;
+            min-height: 90px;
+        }
+
+        .controller_header {
+            background-color: rgb(70 70 70);
+            color: antiquewhite;
+            padding: 2px;
+            padding-left: 10px;
+            //font-weight: bold;
+            font-size: 15px;
+        }
+
+        .info_panel {
+            display: inline-block;
+            width: 100%;
+            height: 100%;
+            background-color: rgb(50 50 50);
+            padding: 2px;
+            color: antiquewhite;
+            border: 1px solid rgb(100 100 100);
+        }
+
+        .info_block{
+            align-content: end;
+            align-items: end;
+            width: 50%;
+        }
+
+
+
+        .sw_block {
+            align-content: end;
+            align-items: end;
+            width: 50%;
+        }
+
+        table {
+            width: 100%;
+            padding: 5px;
+        }
+
+        .info {
+            display: flex;
+            padding: 5px;
+            border: 1px solid rgb(100 100 100);
+            user-select: none;
+        }
+
+            .info[can_select=true] {
+                display: flex;
+                padding: 5px;
+                border: 1px solid rgb(100 100 100);
+                user-select: text;
+            }
+        .logo_sw_button {
+            display: inline-flex;
+            margin: 5px;
+            min-height: 90%;
+            height: auto;
+            min-width: 30% ;
+            width: 30% ;
+            line-height: 90px;
+            background-color: rgb(100 100 100);
+            border: 2px solid rgb(10 10 10);
+            align-content: center;
+            text-align: center;
+            vertical-align: middle;
+            font-weight: bold;
+            user-select: none;
+            //text-shadow: 1px 1px 2px red;
+        }
+
+        .logo_sw_button[activelogo=true] {
+            background-color: chartreuse;
+        }
+
+            .logo_sw_button[invalid_logo_set=true] {
+                background-color: red;
+            }
+
+        .btn_text {
+            background-color: transparent;
+            display: inline-block;
+            font-weight: bold;
+            width: 100%;
+            height: 100%;
+            align-content: center;
+            font-size: 18px;
+        }
+
+        
+        .logo_sw_button:hover {
+            border: 2px solid rgb(160 10 10);
+        }
+
+        .logo_sw_button:active {
+            border: 2px solid rgb(255 10 10);
+        }
+
+        .logo_sw_button[activelogo=true]:active {
+            color: black;
+
+        }
+
+        .logo_sw_button[activelogo=false]:active {
+            color: white;
+            background-color: rgb(50 50 50)
+        }
+
+        body {
+            background-color: rgb(30 30 30);
+            font-family: 'Segoe UI';
+            font-size: 14px;
+        }
+    </style>
+
+    <script>
+        var boards_def = [];
+        
+        function UpdateLogoView(logoDef) {
+
+            var element = boards_def.find(elem => {
+                return elem.data.id === logoDef.id;
+            });
+
+            
+
+            if (element === undefined) return GenerateLogoView(logoDef);
+
+            //UPDATE
+            element.data = logoDef;
+            element.ui.title.innerHTML = logoDef.name;
+            element.ui.inputA.innerText = "Input A: " + logoDef.inputAStat;
+            element.ui.refIn.innerText = "Reference In: " + logoDef.referenceStat;
+
+            element.ui.refIn.innerText = "Reference In: " + logoDef.referenceStat;            
+            element.ui.Temperature.innerText = "Temperature front: " + logoDef.cardTemperatureFront + ", rear: " + logoDef.cardTemperatureRear;
+            element.ui.cardTime.innerText = "Card Time: " + logoDef.cardTime;
+            element.ui.logoStat.innerText = "Logo: " + logoDef.activeLogoTxt;
+
+            for (var i = 0; i < element.ui.logoBtns.length; i++) {
+                element.ui.logoBtns[i].setAttribute("activelogo", logoDef.activeLogo == i);
+                element.ui.logoBtns[i].setAttribute("invalid_logo_set", logoDef.activeLogo < 0);
+            }
+            
+
+        }
+        function GenerateLogoView(logoDef) {
+            let mainContainer = document.getElementById("mainContainer");
+
+            let element = {
+                data: logoDef,
+                ui: {}
+            }
+
+
+            let node = document.createElement("div");
+            node.className = 'logo_controller';
+            node.id = logoDef.id;
+
+            let header = document.createElement("div");
+            header.className = "controller_header";
+            header.innerHTML = logoDef.name;
+
+            element.ui.title = header;
+
+            node.appendChild(header);
+
+            let layout_tbl = document.createElement("table");
+            let row = layout_tbl.insertRow(0);
+            let left_column = row.insertCell(0);
+            let right_column = row.insertCell(1);
+            row.className = "block_row";
+            right_column.className = "info_block";
+            left_column.className = "sw_block";
+
+            node.appendChild(layout_tbl);
+
+            let info_panel = document.createElement("div");
+            info_panel.className = 'info_panel';
+
+            let boardID = document.createElement("div");
+            boardID.className = 'info';
+            boardID.innerText = "SN: " + logoDef.id;
+            boardID.setAttribute("can_select", "true");
+            element.ui.boardId = boardID;
+            let inputA = document.createElement("div");
+            inputA.className = 'info';
+            inputA.innerText = "Input A: " + logoDef.inputAStat;
+            element.ui.inputA = inputA;
+            let refIn = document.createElement("div");
+            refIn.className = 'info';
+            refIn.innerText = "Reference In: " + logoDef.referenceStat;
+            element.ui.refIn = refIn;
+            let fromTemp = document.createElement("div");
+            fromTemp.className = 'info';
+            fromTemp.innerText = "Temperature front: " + logoDef.cardTemperatureFront + ", rear: " + logoDef.cardTemperatureRear;
+            element.ui.Temperature = fromTemp;
+
+            let cardTime = document.createElement("div");
+            cardTime.className = 'info';
+            cardTime.innerText = "Card Time: " + logoDef.cardTime;
+            element.ui.cardTime = cardTime;
+
+            let logoStat = document.createElement("div");
+            logoStat.className = 'info';
+            logoStat.innerText = "Logo: " + logoDef.activeLogoTxt;
+            element.ui.logoStat = logoStat;
+
+            info_panel.appendChild(boardID);
+            info_panel.appendChild(inputA);
+            info_panel.appendChild(refIn);
+            info_panel.appendChild(fromTemp);
+            info_panel.appendChild(cardTime);
+            info_panel.appendChild(logoStat);
+
+
+
+            right_column.appendChild(info_panel);
+
+            let swPanel = document.createElement("div");
+            swPanel.className = 'logo_sw_panel';
+
+            let logoOff = document.createElement("div");
+            logoOff.className = 'logo_sw_button';
+            logoOff.innerHTML = "<div class='btn_text' btnId='" + 0 + "' brdId='" + logoDef.id + "'>LOGO OFF</div>";;
+            logoOff.setAttribute("btnId", 0);
+            logoOff.setAttribute("brdId", logoDef.id);
+            logoOff.setAttribute("activelogo", logoDef.activeLogo == 0);
+            logoOff.addEventListener("click", logo_sw_clicked);
+            logoOff.setAttribute("invalid_logo_set", logoDef.activeLogo < 0);
+            element.ui.logoBtns = [];
+            element.ui.logoBtns.push(logoOff);
+            swPanel.appendChild(logoOff);
+
+            for (var i = 0; i < logoDef.numLogos; i++) {
+                var btnLogoOn = document.createElement("div");
+                btnLogoOn.className = 'logo_sw_button';
+                btnLogoOn.innerHTML = "<div class='btn_text' btnId='" + (i + 1) + "' brdId='" + logoDef.id + "'>LOGO " + (i + 1) + " ON</div>";
+                btnLogoOn.setAttribute("activelogo", logoDef.activeLogo == (i + 1));
+                btnLogoOn.setAttribute("btnId", i + 1);
+                btnLogoOn.setAttribute("brdId", logoDef.id);
+                btnLogoOn.addEventListener("click", logo_sw_clicked);
+
+                btnLogoOn.setAttribute("invalid_logo_set", logoDef.activeLogo < 0);
+                swPanel.appendChild(btnLogoOn);
+                
+                element.ui.logoBtns.push(btnLogoOn);
+            }
+
+
+            left_column.appendChild(swPanel);
+
+            mainContainer.appendChild(node)
+
+            boards_def.push(element);
+        }
+
+        function logo_sw_clicked(a) {
+            const caller = a.srcElement;
+            const brdId = caller.getAttribute("brdId");
+            const btnId = caller.getAttribute("btnId");
+            console.log("Board: ", brdId, ", logo: ", btnId);
+
+            SetLogo(brdId, btnId);
+        }
+
+        function CleanupMissing(logoDefArr) {            
+            let temp = boards_def.filter(elm => {
+                return !(logoDefArr.some(elem => {
+                    return elem.id == elm.data.id;
+                }));
+            })
+            
+            temp.forEach(t => {
+                //console.log("T IS", t);
+                let main = document.getElementById(t.data.id);
+                main.parentNode.removeChild(main);
+            })
+
+
+            boards_def = boards_def.filter(elm => {
+                return logoDefArr.some(elem => {
+                    return elem.id == elm.data.id;
+                })
+            })
+        }
+
+        function doUpdate(boards_internal) {
+            if (!Array.isArray(boards_internal)) {
+                console.error("Invalid data received: ", this.responseText);
+            }
+            CleanupMissing(boards_internal);
+            boards_internal.forEach(UpdateLogoView);
+
+            
+        }
+
+        function reqListener() {
+            try {
+                boards_internal = JSON.parse(this.responseText)
+
+                doUpdate(boards_internal);
+
+            } catch (e) {
+                console.error("Parse failed: ", e, this.responseText);
+            }
+
+        }
+        function GetAllInfo() {
+            var oReq = new XMLHttpRequest();
+            oReq.addEventListener("load", reqListener);
+            oReq.open("GET", "/api/boards");
+            oReq.send();
+        }
+
+
+        function logoSetReply() {}
+
+        function SetLogo(brdID, logoId) {
+            var oReq = new XMLHttpRequest();
+            oReq.addEventListener("load", logoSetReply);
+            oReq.open("POST", "/api/boards/"+brdID+"/logo?logo="+logoId);
+            oReq.send();
+        }
+
+        function FireJSFunc() {
+            GetAllInfo();
+
+
+            setInterval(GetAllInfo, 1000);
+        }
+
+
+    </script>
+
+</head>
+<body onload="FireJSFunc()">
+    <div id="mainContainer"></div>
+</body>
+</html>

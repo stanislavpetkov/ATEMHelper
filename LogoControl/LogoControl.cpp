@@ -3,10 +3,20 @@
 #include "LogoClass.h"
 #include "ControllerClass.h"
 #include <thread>
+#include <WinSock2.h>
 
 
 int main()
 {
+
+	INT rc;
+	WSADATA wsaData;
+
+	rc = WSAStartup(MAKEWORD(2, 2), &wsaData);
+	if (rc) {
+		throw std::exception("");
+	}
+
 
 	ControllerClass ctrlr;
 

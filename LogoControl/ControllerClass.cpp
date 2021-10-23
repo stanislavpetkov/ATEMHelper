@@ -1,5 +1,6 @@
 #include <atomic>
 #include <vector>
+#include <fstream>
 #include <WinSock2.h>
 #include "../Common/atomic_lock.h"
 #include "../Common/HTTP Server/HTTPServer2.h"
@@ -7,6 +8,8 @@
 #include "LogoClass.h"
 #include "BoardAPIModel.h"
 #include "../Common/sys_utils.h"
+#include "../LibLogging/LibLogging.h"
+using namespace HTTP;
 
 struct ControllerClass::impl
 {
@@ -23,24 +26,61 @@ struct ControllerClass::impl
 			atomic_lock lock(veclock);
 			for (auto& elm : logoBoards)
 			{
+				if (elm->Id().empty()) continue;
 				BoardAPIModel & api = mdl.emplace_back();
 
 				auto logo1path = elm->GetLogosStatus(1);
 				auto logo2path = elm->GetLogosStatus(2);
-				const auto numLogos = elm->NumLogos() / 2;
+
+				auto numLogos = std::min(logo1path.size(), logo2path.size()) / 2;
+
+				
 				api.activeLogo = -1;
-				if (logo1path.size() == logo2path.size())
+				if ((logo1path.size() == logo2path.size()) && (logo1path.size()==4))
 				{
-					for (size_t i = 0; i < numLogos; i++)
+					auto logo1On = (logo1path[0] && logo2path[0 + 2]);
+					auto logo2On = (logo1path[1] && logo2path[1 + 2]);
+
+					auto invalid = logo1path[2] || logo1path[3] ||
+						logo2path[0] || logo2path[1];
+
+					invalid |= (logo1path[0] && logo1path[1]);
+					invalid |= (logo2path[2] && logo2path[3]);
+
+					if (logo1path[0] != logo2path[0 + 2]) invalid = true;
+					if (logo1path[1] != logo2path[1 + 2]) invalid = true;
+					
+					if (!invalid)
 					{
-						if (logo1path[i] && logo2path[i + 2])
-						{
-							api.activeLogo = static_cast<int32_t>(i)+1;
-							break;
+						if (logo1On && !logo2On) {
+							api.activeLogo = 1;
+							api.activeLogoTxt = "logo 1";
 						}
+						if (!logo1On && logo2On) {
+							api.activeLogoTxt = "logo 2";
+							api.activeLogo = 2;
+						}
+						if (!logo1On && !logo2On) {
+							api.activeLogo = 0; //all logo off
+							api.activeLogoTxt = "logo off";
+						}
+
+
 					}
+					else
+					{
+						api.activeLogoTxt = "invalid logo set";
+					}
+
 				}
 
+				api.cpuUsage = elm->GetCPUUsage();
+				api.cardTemperatureFront = elm->GetCardTemperatureFront();
+				api.cardTemperatureRear = elm->GetCardTemperatureRear();
+				api.ramUsage = elm->GetRAMUsage();
+				api.cardTime = elm->GetCardTime();
+				api.referenceStat = elm->GetReferenceStatus();
+				api.inputAStat = elm->GetInputAStatus();
 
 				api.id = elm->Id();
 				api.model = elm->Model();
@@ -53,34 +93,138 @@ struct ControllerClass::impl
 		return HTTP::StatusCode::success_ok;
 	}
 
-	/*static HTTP::StatusCode GetBoard(const uint64_t cookie, const HTTP::HTTP_IOREQUEST& request, HTTP::HTTP_REPLY& reply)
+	HTTP::StatusCode SetLogoAPI( const HTTP::HTTP_IOREQUEST& request, HTTP::HTTP_REPLY& reply)
 	{
-		vv
-	}*/
+		auto brdId = request.getUrlParam("{Id}");
+
+		auto value = request.getUrlParam("logo");
+		reply.type = HTTP::Reply_type_t::rt_JSON;
+		if (!value.has_value())
+		{
+			return reply.DoError(HTTP::StatusCode::client_error_bad_request, ErrorResponse<HTTP::StatusCode>{ HTTP::StatusCode::client_error_bad_request, "parameter 'logo' not found" });
+		}
+
+
+		auto logo = value.value();
+		if (logo.empty())
+		{
+			return reply.DoError(HTTP::StatusCode::client_error_bad_request, ErrorResponse<HTTP::StatusCode>{ HTTP::StatusCode::client_error_bad_request, "parameter 'logo' can not be empty" });
+		}
+
+
+		if (logo == "off") logo = "0";
+		
+		LogoSel logoS;
+		
+		try
+		{
+			const auto x = std::stoul(logo);
+			if (x > uint32_t(LogoSel::logo2On))
+			{
+				return reply.DoError(HTTP::StatusCode::client_error_bad_request, ErrorResponse<HTTP::StatusCode>{ HTTP::StatusCode::client_error_bad_request, "parameter 'logo' invalid enum. 0,1,2 are valid" });
+			}
+			logoS = LogoSel(x);
+		}
+		catch (const std::exception&)
+		{
+			return reply.DoError(HTTP::StatusCode::client_error_bad_request, ErrorResponse<HTTP::StatusCode>{ HTTP::StatusCode::client_error_bad_request, "parameter 'logo' invalid enum. 0,1,2 are valid" });
+		}
+		
+
+		
+		{
+			atomic_lock lock(veclock);
+			for (auto& elm : logoBoards)
+			{
+				if (elm->Id() == brdId)
+				{
+					if (logoS == LogoSel::logoOff)
+					{
+						elm->SetLogos(LogoSel::logoOff, LogoSel::logoOff);
+					}
+					else
+					{
+						elm->SetLogos(logoS, LogoSel(uint32_t(logoS) + 2));
+					}
+					
+					return reply.DoError(HTTP::StatusCode::success_ok, ErrorResponse<HTTP::StatusCode>{ HTTP::StatusCode::success_ok, "Success" });
+				}
+			}
+		}
+		
+		return reply.DoError(HTTP::StatusCode::client_error_not_found, ErrorResponse<HTTP::StatusCode>{ HTTP::StatusCode::client_error_not_found, "BoardNotFound" });
+		
+	}
+
 
 
 
 	impl() :
 		server(std::make_unique<HTTP::HTTPServer2>(reinterpret_cast<uint64_t>(this), "0.0.0.0", 9012, "LogoAPI", false))
 	{
+		pbn::fs::Path p= pbn::OS::GetProgramDataFolder();
+		p.append("LogoControl");
 
-	logoBoards.push_back(std::make_shared<LogoClass>("192.168.16.139"));
-	logoBoards.push_back(std::make_shared<LogoClass>("192.168.16.140"));
+		pbn::fs::create_dirs(p);
+		p.append("config.json");
+		if (!pbn::fs::file_exist(p))
+		{
+			std::ofstream ofs(p.wstring());
+			ofs.unsetf(std::ios::skipws);
+			nlohmann::json j = nlohmann::json::array();
+			j.push_back("192.168.16.139");
+			j.push_back("192.168.16.140");
+			std::string jj = j.dump();
+			ofs << jj;
+			ofs.flush();
+			ofs.close();
+		}
 
-		INT rc;
-		WSADATA wsaData;
+		std::ifstream ifs(p.wstring());
+		if (ifs.is_open())
+		{
+			try
+			{
+				nlohmann::json j = nlohmann::json::parse(ifs);
+				if (!j.is_array()) throw std::runtime_error("Wrong json ... must be array of strings");
+				for (const auto& elm : j)
+				{
+					if (!elm.is_string()) throw std::runtime_error("Wrong json ... must be array of strings");
+					logoBoards.push_back(std::make_shared<LogoClass>(elm.get<std::string>()));
+				}
 
-		rc = WSAStartup(MAKEWORD(2, 2), &wsaData);
-		if (rc) {
-			throw std::exception("");
+
+			}
+			catch (const std::exception& e)
+			{
+				Log::error(__func__, "Config file ::: {}",e.what());
+			}
+			catch(...)
+			{ 
+				Log::error(__func__, "Wrong config file format");
+					
+			}
 		}
 
 
+	
+	
+
+		
+
 		pbn::fs::Path contentPath(pbn::OS::get_current_module_path());
-		server->set_document_root(contentPath.parent_path().append("content"));
+#ifdef _DEBUG
+		server->set_document_root(contentPath.parent_path().parent_path().append("content"));
+#else
+
+		server->set_document_root(contentPath.append("content"));
+#endif
 
 
 		server->add_endpoint(HTTP::methods::s_get_method, "/api/boards", [this](const uint64_t cookie, const HTTP::HTTP_IOREQUEST& request, HTTP::HTTP_REPLY& reply) {return  GetBoards(request, reply); });
+		server->add_endpoint(HTTP::methods::s_post_method, "/api/boards/{Id}/logo", [this](const uint64_t cookie, const HTTP::HTTP_IOREQUEST& request, HTTP::HTTP_REPLY& reply) {return  SetLogoAPI(request, reply); });
+		server->add_endpoint(HTTP::methods::s_get_method, "/api/boards/{Id}/logo", [this](const uint64_t cookie, const HTTP::HTTP_IOREQUEST& request, HTTP::HTTP_REPLY& reply) {return  SetLogoAPI(request, reply); });
+
 
 
 		server->Start();

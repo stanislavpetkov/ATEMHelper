@@ -28,6 +28,9 @@
     <Filter Include="SysUtils">
       <UniqueIdentifier>{9f769b4e-8526-429e-ab09-a5bcfd082047}</UniqueIdentifier>
     </Filter>
+    <Filter Include="content">
+      <UniqueIdentifier>{cfb9f89e-83e7-474a-a74c-929d23a27779}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="LogoControl.cpp">
@@ -56,6 +59,9 @@
     </ClCompile>
     <ClCompile Include="..\Common\sysUtils_Impl\String.cpp">
       <Filter>SysUtils</Filter>
+    </ClCompile>
+    <ClCompile Include="LogoClassImpl.cpp">
+      <Filter>LogoClass</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -95,5 +101,20 @@
     <ClInclude Include="BoardAPIModel.h">
       <Filter>HTTP</Filter>
     </ClInclude>
+    <ClInclude Include="LogoClassImpl.h">
+      <Filter>LogoClass</Filter>
+    </ClInclude>
+    <ClInclude Include="LogoCmdDefs.h">
+      <Filter>LogoClass</Filter>
+    </ClInclude>
+    <ClInclude Include="LogoSel.h">
+      <Filter>LogoClass</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="cpp.hint" />
+    <None Include="content\index.html">
+      <Filter>content</Filter>
+    </None>
   </ItemGroup>
 </Project>

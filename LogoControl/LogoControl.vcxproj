@@ -161,6 +161,7 @@
     <ClCompile Include="..\Common\WebsocketClient\easywsclient.cpp" />
     <ClCompile Include="ControllerClass.cpp" />
     <ClCompile Include="LogoClass.cpp" />
+    <ClCompile Include="LogoClassImpl.cpp" />
     <ClCompile Include="LogoControl.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -181,6 +182,15 @@
     <ClInclude Include="BoardAPIModel.h" />
     <ClInclude Include="ControllerClass.h" />
     <ClInclude Include="LogoClass.h" />
+    <ClInclude Include="LogoClassImpl.h" />
+    <ClInclude Include="LogoCmdDefs.h" />
+    <ClInclude Include="LogoSel.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="content\index.html">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
+    <None Include="cpp.hint" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
