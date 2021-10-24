@@ -36,9 +36,6 @@
     <ClCompile Include="LogoControl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="LogoClass.cpp">
-      <Filter>LogoClass</Filter>
-    </ClCompile>
     <ClCompile Include="..\Common\WebsocketClient\easywsclient.cpp">
       <Filter>WebSocket</Filter>
     </ClCompile>
@@ -60,14 +57,11 @@
     <ClCompile Include="..\Common\sysUtils_Impl\String.cpp">
       <Filter>SysUtils</Filter>
     </ClCompile>
-    <ClCompile Include="LogoClassImpl.cpp">
+    <ClCompile Include="LogoClass.cpp">
       <Filter>LogoClass</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="LogoClass.h">
-      <Filter>LogoClass</Filter>
-    </ClInclude>
     <ClInclude Include="..\Common\WebsocketClient\easywsclient.hpp">
       <Filter>WebSocket</Filter>
     </ClInclude>
@@ -101,7 +95,7 @@
     <ClInclude Include="BoardAPIModel.h">
       <Filter>HTTP</Filter>
     </ClInclude>
-    <ClInclude Include="LogoClassImpl.h">
+    <ClInclude Include="LogoClass.h">
       <Filter>LogoClass</Filter>
     </ClInclude>
     <ClInclude Include="LogoCmdDefs.h">

@@ -1,93 +1,61 @@
 <html>
 <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Logo Controller</title>
     <style>
         .logo_controller {
             width: 100%;
             border: 1px solid rgb(100 100 100);
-            margin-bottom: 10px;            
+            margin-bottom: 20px;
         }
 
-        .block_row {
-            height: 100%;
-            min-height: 90px;
-        }
+
 
         .controller_header {
+            display: inline-block;
+            text-align: center;
+            width: 100%;
             background-color: rgb(70 70 70);
             color: antiquewhite;
-            padding: 2px;
-            padding-left: 10px;
-            //font-weight: bold;
-            font-size: 15px;
+            font-size: 18px;
+        }
+
+        .main_panel {
+            display: block;
+            height: fit-content;
+            width: 100%;
         }
 
         .info_panel {
-            display: inline-block;
+            display: block;
             width: 100%;
             height: 100%;
             background-color: rgb(50 50 50);
-            padding: 2px;
-            color: antiquewhite;
+            color: lightgray;
             border: 1px solid rgb(100 100 100);
         }
 
-        .info_block{
-            align-content: end;
-            align-items: end;
-            width: 50%;
-        }
-
-
-
-        .sw_block {
-            align-content: end;
-            align-items: end;
-            width: 50%;
-        }
-
-        table {
+        .logo_sw_panel {
+            display: flex;
             width: 100%;
-            padding: 5px;
+            height: 100%;
+            background-color: rgb(50 50 50);
+            border: 1px solid rgb(100 100 100);
         }
+
 
         .info {
             display: flex;
-            padding: 5px;
             border: 1px solid rgb(100 100 100);
             user-select: none;
+            min-width: 50%;
+            min-height: auto;
+            line-height: normal;
         }
 
             .info[can_select=true] {
-                display: flex;
-                padding: 5px;
                 border: 1px solid rgb(100 100 100);
                 user-select: text;
-            }
-        .logo_sw_button {
-            display: inline-flex;
-            margin: 5px;
-            min-height: 90%;
-            height: auto;
-            min-width: 30% ;
-            width: 30% ;
-            line-height: 90px;
-            background-color: rgb(100 100 100);
-            border: 2px solid rgb(10 10 10);
-            align-content: center;
-            text-align: center;
-            vertical-align: middle;
-            font-weight: bold;
-            user-select: none;
-            //text-shadow: 1px 1px 2px red;
-        }
-
-        .logo_sw_button[activelogo=true] {
-            background-color: chartreuse;
-        }
-
-            .logo_sw_button[invalid_logo_set=true] {
-                background-color: red;
             }
 
         .btn_text {
@@ -97,64 +65,134 @@
             width: 100%;
             height: 100%;
             align-content: center;
-            font-size: 18px;
+            font-size: 15px;
+            border: 1px solid rgb(100 100 100);
         }
 
-        
-        .logo_sw_button:hover {
-            border: 2px solid rgb(160 10 10);
+        .logo_sw_button {
+            display: flex;
+            min-height: 90%;
+            height: auto;
+            min-width: 100%;
+            width: 100%;
+            line-height: 90px;
+            background-color: rgb(100 100 100);
+            align-content: center;
+            text-align: center;
+            vertical-align: middle;
+            font-weight: bold;
+            user-select: none;
         }
 
-        .logo_sw_button:active {
-            border: 2px solid rgb(255 10 10);
-        }
+            .logo_sw_button[activelogo=false] {
+                background-color: rgb(0 30 0);
+                color: rgb(130 130 130);
+            }
 
-        .logo_sw_button[activelogo=true]:active {
-            color: black;
+            .logo_sw_button[activelogo=true] {
+                background-color: rgb(50 200 50);
+                color: black;
+            }
 
-        }
+            .logo_sw_button[invalid_logo_set=true] {
+                background-color: red;
+                color: rgb(0 0 0);
+            }
 
-        .logo_sw_button[activelogo=false]:active {
-            color: white;
-            background-color: rgb(50 50 50)
-        }
+
+
+
+            .logo_sw_button[activelogo=true]:hover {
+                color: black;
+                background-color: rgb(80 230 80);
+            }
+
+            .logo_sw_button[activelogo=false]:hover {
+                background-color: rgb(0 80 0);
+                color: white;
+            }
+
+            .logo_sw_button[activelogo=true]:active {
+                color: white;
+                background-color: rgb(0 255 0);
+                text-shadow: 1px 1px 2px black;
+            }
+
+            .logo_sw_button[activelogo=false]:active {
+                background-color: rgb(0 150 0);
+                color: white;
+                text-shadow: 1px 1px 2px black;
+            }
 
         body {
             background-color: rgb(30 30 30);
             font-family: 'Segoe UI';
             font-size: 14px;
         }
+
+
+        /* Less space: */
+        @media only screen and (min-width: 10px) {
+            .logo_sw_button {
+                width: 100%;
+                min-width: 100%;
+                margin-left: 0;
+                margin-right: 0;
+            }
+
+            .logo_sw_panel {
+                display: block;
+            }
+            
+            }
+
+        /* Enough space: */
+        @media only screen and (min-width: 768px) {
+            .logo_sw_button {
+                width: 31%;
+                min-width: 31%;
+                margin-left: auto;
+                margin-right: auto;
+            }
+
+            .logo_sw_panel {
+                display: flex;
+            }
+
+          
+        }
     </style>
 
     <script>
         var boards_def = [];
-        
+        var last_id = 0;
+
         function UpdateLogoView(logoDef) {
 
             var element = boards_def.find(elem => {
                 return elem.data.id === logoDef.id;
             });
 
-            
+
 
             if (element === undefined) return GenerateLogoView(logoDef);
 
             //UPDATE
             element.data = logoDef;
-            element.ui.title.innerHTML = logoDef.name;
+            element.ui.title.innerHTML = logoDef.name.toUpperCase();
             element.ui.inputA.innerText = "Input A: " + logoDef.inputAStat;
             element.ui.refIn.innerText = "Reference In: " + logoDef.referenceStat;
 
-            element.ui.refIn.innerText = "Reference In: " + logoDef.referenceStat;            
+            element.ui.refIn.innerText = "Reference In: " + logoDef.referenceStat;
             element.ui.Temperature.innerText = "Temperature front: " + logoDef.cardTemperatureFront + ", rear: " + logoDef.cardTemperatureRear;
-            element.ui.cardTime.innerText = "Card Time: " + logoDef.cardTime;
+            //element.ui.cardTime.innerText = "Card Time: " + logoDef.cardTime;
             element.ui.logoStat.innerText = "Logo: " + logoDef.activeLogoTxt;
 
             for (var i = 0; i < element.ui.logoBtns.length; i++) {
                 element.ui.logoBtns[i].setAttribute("activelogo", logoDef.activeLogo == i);
                 element.ui.logoBtns[i].setAttribute("invalid_logo_set", logoDef.activeLogo < 0);
             }
-            
+
 
         }
         function GenerateLogoView(logoDef) {
@@ -172,21 +210,17 @@
 
             let header = document.createElement("div");
             header.className = "controller_header";
-            header.innerHTML = logoDef.name;
+            header.innerHTML = logoDef.name.toUpperCase();
 
             element.ui.title = header;
 
             node.appendChild(header);
 
-            let layout_tbl = document.createElement("table");
-            let row = layout_tbl.insertRow(0);
-            let left_column = row.insertCell(0);
-            let right_column = row.insertCell(1);
-            row.className = "block_row";
-            right_column.className = "info_block";
-            left_column.className = "sw_block";
+            let main_panel = document.createElement("div");
+            main_panel.className = "main_panel";
 
-            node.appendChild(layout_tbl);
+
+
 
             let info_panel = document.createElement("div");
             info_panel.className = 'info_panel';
@@ -209,10 +243,10 @@
             fromTemp.innerText = "Temperature front: " + logoDef.cardTemperatureFront + ", rear: " + logoDef.cardTemperatureRear;
             element.ui.Temperature = fromTemp;
 
-            let cardTime = document.createElement("div");
-            cardTime.className = 'info';
-            cardTime.innerText = "Card Time: " + logoDef.cardTime;
-            element.ui.cardTime = cardTime;
+            //let cardTime = document.createElement("div");
+            //cardTime.className = 'info';
+            //cardTime.innerText = "Card Time: " + logoDef.cardTime;
+            //element.ui.cardTime = cardTime;
 
             let logoStat = document.createElement("div");
             logoStat.className = 'info';
@@ -223,12 +257,12 @@
             info_panel.appendChild(inputA);
             info_panel.appendChild(refIn);
             info_panel.appendChild(fromTemp);
-            info_panel.appendChild(cardTime);
+            //info_panel.appendChild(cardTime);
             info_panel.appendChild(logoStat);
 
 
 
-            right_column.appendChild(info_panel);
+
 
             let swPanel = document.createElement("div");
             swPanel.className = 'logo_sw_panel';
@@ -256,13 +290,16 @@
 
                 btnLogoOn.setAttribute("invalid_logo_set", logoDef.activeLogo < 0);
                 swPanel.appendChild(btnLogoOn);
-                
+
                 element.ui.logoBtns.push(btnLogoOn);
             }
 
 
-            left_column.appendChild(swPanel);
 
+            main_panel.appendChild(swPanel);
+            main_panel.appendChild(info_panel);
+
+            node.appendChild(main_panel);
             mainContainer.appendChild(node)
 
             boards_def.push(element);
@@ -277,13 +314,13 @@
             SetLogo(brdId, btnId);
         }
 
-        function CleanupMissing(logoDefArr) {            
+        function CleanupMissing(logoDefArr) {
             let temp = boards_def.filter(elm => {
                 return !(logoDefArr.some(elem => {
                     return elem.id == elm.data.id;
                 }));
             })
-            
+
             temp.forEach(t => {
                 //console.log("T IS", t);
                 let main = document.getElementById(t.data.id);
@@ -305,7 +342,7 @@
             CleanupMissing(boards_internal);
             boards_internal.forEach(UpdateLogoView);
 
-            
+
         }
 
         function reqListener() {
@@ -319,6 +356,9 @@
             }
 
         }
+
+
+
         function GetAllInfo() {
             var oReq = new XMLHttpRequest();
             oReq.addEventListener("load", reqListener);
@@ -327,20 +367,53 @@
         }
 
 
-        function logoSetReply() {}
+
+        function notifReqListener() {
+            try {
+                boards_internal_N = JSON.parse(this.responseText)
+                doUpdate(boards_internal_N.boards);
+                last_id = boards_internal_N.timeStampMs;
+
+
+            } catch (e) {
+                console.error("Parse failed: ", e, this.responseText);
+            }
+
+            setTimeout(GetInfoNotifications, 10);
+
+        }
+
+        function notifFailed() {
+            setTimeout(GetInfoNotifications, 100);
+        }
+
+
+        function GetInfoNotifications() {
+            var oReq = new XMLHttpRequest();
+            oReq.addEventListener("load", notifReqListener);
+            oReq.addEventListener("error", notifFailed);
+            oReq.addEventListener("abort", notifFailed);
+            oReq.open("GET", "/api/boards/poll?last_id=" + last_id);
+            oReq.send();
+        }
+
+
+
+        function logoSetReply() { }
 
         function SetLogo(brdID, logoId) {
             var oReq = new XMLHttpRequest();
             oReq.addEventListener("load", logoSetReply);
-            oReq.open("POST", "/api/boards/"+brdID+"/logo?logo="+logoId);
+            oReq.open("POST", "/api/boards/" + brdID + "/logo?logo=" + logoId);
             oReq.send();
         }
 
         function FireJSFunc() {
-            GetAllInfo();
+            // GetAllInfo();
+            GetInfoNotifications();
 
 
-            setInterval(GetAllInfo, 1000);
+            // setInterval(GetAllInfo, 1000);
         }
 
 

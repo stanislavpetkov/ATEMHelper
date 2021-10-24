@@ -22,11 +22,11 @@ struct BoardAPIModel
 	std::string inputAStat;
 	std::string cardTime;
 
-
+	int64_t last_update_time;
 };
 
 
-void to_json(nlohmann::json& j, const BoardAPIModel& mdl)
+static void to_json(nlohmann::json& j, const BoardAPIModel& mdl)
 {
 	j = nlohmann::json::object();
 	SetJSValue(j, mdl, id);
@@ -43,4 +43,18 @@ void to_json(nlohmann::json& j, const BoardAPIModel& mdl)
 	SetJSValue(j, mdl, referenceStat);
 	SetJSValue(j, mdl, inputAStat);
 	SetJSValue(j, mdl, cardTime);
+}
+
+
+struct BoardsAPIModel
+{
+	std::vector<BoardAPIModel> boards;
+	int64_t timeStampMs;
+};
+
+static void to_json(nlohmann::json& j, const BoardsAPIModel& mdl)
+{
+	j = nlohmann::json::object();
+	SetJSValue(j, mdl, boards);
+	SetJSValue(j, mdl, timeStampMs);
 }

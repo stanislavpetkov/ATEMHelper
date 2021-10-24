@@ -171,7 +171,7 @@ namespace HTTP
 
 
 		static bool InitializeHttpServer(SERVER_CONTEXT& pServerContext);
-		static void IoCompletionCallback(PTP_CALLBACK_INSTANCE Instance, PVOID pContext, PVOID pOverlapped, ULONG IoResult, ULONG_PTR NumberOfBytesTransferred, PTP_IO Io);
+		static void __stdcall IoCompletionCallback(PTP_CALLBACK_INSTANCE Instance, PVOID pContext, PVOID pOverlapped, ULONG IoResult, ULONG_PTR NumberOfBytesTransferred, PTP_IO Io);
 		static bool InitializeServerIo(SERVER_CONTEXT& ServerContext);
 
 		static void UninitializeServerIo(SERVER_CONTEXT& ServerContext);
@@ -2023,7 +2023,7 @@ namespace HTTP
 	}
 
 
-	void CALLBACK HTTPServer2::impl::IoCompletionCallback(
+	void __stdcall HTTPServer2::impl::IoCompletionCallback(
 		PTP_CALLBACK_INSTANCE Instance,
 		PVOID pContext,
 		PVOID pOverlapped,

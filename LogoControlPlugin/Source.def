@@ -1,0 +1,6 @@
+LIBRARY     LogoControlPlugin.dll
+
+EXPORTS
+            DllMain                 PRIVATE
+            PlugInFunc              PRIVATE
+            
