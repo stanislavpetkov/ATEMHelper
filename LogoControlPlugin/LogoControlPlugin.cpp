@@ -292,9 +292,21 @@ public:
 
 	PluginCommand deserialize(const std::string& cmd)
 	{
+
+		Log::info(__func__, "Deserializing: '{}'", cmd);
 		auto splres = pbn::split(cmd, ';');
 		PluginCommand res;
-		if (splres.size() != 5) return res;
+
+
+		if (! ((splres.size() == 2) || (splres.size() == 5))) {
+			
+			return res;
+		}
+
+		if (splres.size() == 2)
+		{
+			splres.insert(splres.begin() + 1, "0");
+		}
 
 		try
 		{
