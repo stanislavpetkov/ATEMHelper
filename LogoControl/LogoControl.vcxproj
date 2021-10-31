@@ -183,12 +183,16 @@
     <ClInclude Include="LogoClass.h" />
     <ClInclude Include="LogoCmdDefs.h" />
     <ClInclude Include="LogoSel.h" />
+    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="content\index.html">
       <DeploymentContent>true</DeploymentContent>
     </None>
     <None Include="cpp.hint" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="LogoControl.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

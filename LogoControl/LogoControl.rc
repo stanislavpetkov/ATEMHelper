@@ -57,84 +57,6 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 
 /////////////////////////////////////////////////////////////////////////////
 //
-// Dialog
-//
-
-IDD_EDITDIALOG DIALOGEX 0, 0, 174, 90
-STYLE DS_SYSMODAL | DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION
-EXSTYLE WS_EX_TOOLWINDOW
-CAPTION "Edit Logo"
-FONT 10, "Segoe UI Semibold", 600, 0, 0xCC
-BEGIN
-    DEFPUSHBUTTON   "OK",IDOK,118,49,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,118,69,50,14
-    CONTROL         "Logo Off",IDC_RADIO1,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,8,44,10
-    CONTROL         "Logo 1 On",IDC_RADIO2,"Button",BS_AUTORADIOBUTTON,12,22,49,10
-    CONTROL         "Logo 2 On",IDC_RADIO3,"Button",BS_AUTORADIOBUTTON,12,37,49,10
-    EDITTEXT        IDC_OFFSET,55,67,40,14,ES_AUTOHSCROLL
-    LTEXT           "Offset (ms): ",IDC_LBOFFSET,12,70,42,8
-END
-
-IDD_PLUGCFG_DLG DIALOGEX 0, 0, 154, 96
-STYLE DS_SYSMODAL | DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION
-EXSTYLE WS_EX_TOOLWINDOW
-CAPTION "Set Plugin Params"
-FONT 9, "Segoe UI Semibold", 600, 0, 0xCC
-BEGIN
-    DEFPUSHBUTTON   "OK",IDOK,23,67,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,77,67,50,14
-    LTEXT           "Server IP:",IDC_LBSVRIP,14,19,30,8
-    LTEXT           "Logo S/N:",IDC_LBLOGOID,13,41,32,8
-    EDITTEXT        IDC_SVRIP,50,16,90,14,ES_AUTOHSCROLL
-    EDITTEXT        IDC_LOGOID,50,39,90,14,ES_AUTOHSCROLL
-END
-
-
-/////////////////////////////////////////////////////////////////////////////
-//
-// DESIGNINFO
-//
-
-#ifdef APSTUDIO_INVOKED
-GUIDELINES DESIGNINFO
-BEGIN
-    IDD_EDITDIALOG, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 167
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 83
-    END
-
-    IDD_PLUGCFG_DLG, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 146
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 89
-    END
-END
-#endif    // APSTUDIO_INVOKED
-
-
-/////////////////////////////////////////////////////////////////////////////
-//
-// AFX_DIALOG_LAYOUT
-//
-
-IDD_EDITDIALOG AFX_DIALOG_LAYOUT
-BEGIN
-    0
-END
-
-IDD_PLUGCFG_DLG AFX_DIALOG_LAYOUT
-BEGIN
-    0
-END
-
-
-/////////////////////////////////////////////////////////////////////////////
-//
 // Version
 //
 
@@ -148,7 +70,7 @@ VS_VERSION_INFO VERSIONINFO
  FILEFLAGS 0x0L
 #endif
  FILEOS 0x40004L
- FILETYPE 0x2L
+ FILETYPE 0x1L
  FILESUBTYPE 0x0L
 BEGIN
     BLOCK "StringFileInfo"
@@ -156,10 +78,10 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileVersion", "2021.10.31.1339"
-            VALUE "InternalName", "LogoControlPlugin.dll"
+            VALUE "InternalName", "LogoController.exe"
             VALUE "LegalCopyright", "Copyright (C) 2021"
-            VALUE "OriginalFilename", "LogoControlPlugin.dll"
-            VALUE "ProductName", "Logo Control Plugin"
+            VALUE "OriginalFilename", "LogoController.exe"
+            VALUE "ProductName", "Logo Controller"
             VALUE "ProductVersion", "2021.10.31.1339"
         END
     END

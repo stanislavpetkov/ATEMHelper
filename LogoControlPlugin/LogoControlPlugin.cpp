@@ -27,9 +27,17 @@
 
 constexpr HRESULT E_CANCEL_ERR = HRESULT(-1);
 
+#pragma pack( push,1)
+struct InitParams
+{
+	uint8_t airboxInstance;
+	uint32_t wibuMask;
+	HANDLE AppHandle;
+};
+#pragma pack(pop)
 
 struct ExecutionCommand
-{	
+{
 	LogoSel logo = LogoSel::logoOff;
 };
 
@@ -38,6 +46,9 @@ struct PluginCommand
 {
 	LogoSel logo = LogoSel::logoOff;
 	int32_t offset_ms = 0;
+
+
+	WNDPROC  prevCall = 0;
 };
 
 struct PluginSettings
@@ -71,32 +82,35 @@ void from_json(const nlohmann::json& js, PluginSettings& model)
 
 class LogoControlPlugin :public IPlayBoxOut
 {
+public:
+	HWND appHandle = nullptr;
 private:
 	std::atomic<ULONG> refcount = 0;
 	std::atomic <int32_t> inited = -1;
-	
 
+	
 	std::atomic<bool> data_lock = false;
 	PluginSettings plg_settings{};
 	std::string last_error;
-	
+
 	bool bRunning = true;
-	
+
 	concurrency::concurrent_queue<ExecutionCommand> cmdQueue;
 	HANDLE eventCheckForData = CreateEvent(nullptr, false, false, nullptr);
 	std::thread execution_thread;
-	
+
 	void ExecutionThreadFn();
 
 
 	static INT_PTR CALLBACK DialogProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
 	static INT_PTR CALLBACK DialogPlgCfgProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
+	static LRESULT CALLBACK SignedIntegerSubclassProc(HWND hWnd, UINT uMessage, WPARAM wParam, LPARAM lParam);
 
 	bool DoEditDialog(PluginCommand& settings);
 	bool DoPluginCfgDialog(PluginSettings& settings);
 
 
-		static PluginSettings LoadSettings()
+	static PluginSettings LoadSettings()
 	{
 		pbn::fs::Path p = pbn::OS::GetProgramDataFolder();
 		p.append("LogoControlPlugin");
@@ -164,6 +178,7 @@ public:
 	LogoControlPlugin()
 	{
 		execution_thread = std::thread([this]() {return ExecutionThreadFn(); });
+		inited = 1;//Always active
 	}
 
 	~LogoControlPlugin()
@@ -180,8 +195,9 @@ public:
 	{
 		Log::info(__func__, "Init");
 		if (DriverData == nullptr) return E_FAIL;
-		*DriverData = nullptr;//we don't need it
+		
 
+		InitParams* params = (InitParams*)(*DriverData);
 
 		{
 			atomic_lock lock(data_lock);
@@ -195,7 +211,7 @@ public:
 	}
 	virtual HRESULT _stdcall Done(void* DriverData) override
 	{
-		
+
 
 		bRunning = false;
 		SetEvent(eventCheckForData);
@@ -236,7 +252,7 @@ public:
 		}
 		{
 			atomic_lock lock(data_lock);
-			plg_settings = pls;			
+			plg_settings = pls;
 		}
 
 		SaveSettings(pls);
@@ -244,6 +260,7 @@ public:
 	}
 	virtual HRESULT _stdcall Execute(const char* Command, void* DriverData) override
 	{
+		
 		auto cmd = deserialize(Command);
 
 		last_error = fmt::format("Executing::: Logo {}, offset {}", cmd.logo, cmd.offset_ms);
@@ -441,27 +458,27 @@ bool is_ipv4_ok(const std::string& ip)
 }
 
 
-int ExecuteGet(const std::string & url, std::vector<uint8_t> & responseBody)
+int ExecuteGet(const std::string& url, std::vector<uint8_t>& responseBody)
 {
 	http::Request req(url);
 	try
 	{
 		auto response = req.send("GET", "", {}, std::chrono::milliseconds(500));
-		
 
-		responseBody.swap(response.body);		
+
+		responseBody.swap(response.body);
 		return response.status;
 	}
 	catch (...)
 	{
 		return 404;
 	}
-	
+
 }
 
-std::string make_url_execute(const std::string& ip, const std::string & logoId, LogoSel logo)
+std::string make_url_execute(const std::string& ip, const std::string& logoId, LogoSel logo)
 {
-	return fmt::format("http://{}:9012/api/boards/{}/logo?logo={}", ip,logoId,logo); 
+	return fmt::format("http://{}:9012/api/boards/{}/logo?logo={}", ip, logoId, logo);
 }
 
 std::string make_url_get_boards(const std::string& ip)
@@ -485,7 +502,7 @@ void LogoControlPlugin::ExecutionThreadFn()
 			atomic_lock lock(data_lock);
 			local = plg_settings;
 		}
-		
+
 		if (cmdQueue.try_pop(cmd))
 		{
 
@@ -519,7 +536,7 @@ void LogoControlPlugin::ExecutionThreadFn()
 				//do execute
 				Log::info(__func__, "Execute:: IP: {}, LID: {}, LogoNo: {}. Result: {}", local.server_ip, local.logo_id, cmd.logo, res);
 			}
-			
+
 
 			continue;
 		}
@@ -552,18 +569,22 @@ void LogoControlPlugin::ExecutionThreadFn()
 			else
 				Log::warn(__func__, "Get Boards Error Code {}", res);
 		}
-		WaitForSingleObject(eventCheckForData, 2000); 
+		WaitForSingleObject(eventCheckForData, 2000);
 	}
 
 	timeEndPeriod(1);
 	Log::info(__func__, "Comms thread done");
 }
 
+bool IsUnicodeDigit(wchar_t ch)
+{
+	return ((ch >= L'0') && (ch <= L'9'));
+}
 INT_PTR CALLBACK LogoControlPlugin::DialogProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam)
 {
 
 
-
+	
 	if (message == WM_INITDIALOG)
 	{
 		SetWindowLongPtr(hwnd, DWLP_USER, lparam);
@@ -585,13 +606,9 @@ INT_PTR CALLBACK LogoControlPlugin::DialogProc(HWND hwnd, UINT message, WPARAM w
 
 
 
-
-
-
-
-
 	switch (message)
 	{
+	
 	case WM_INITDIALOG:
 	{
 		//Do something for initialization if needed
@@ -613,10 +630,14 @@ INT_PTR CALLBACK LogoControlPlugin::DialogProc(HWND hwnd, UINT message, WPARAM w
 			radio
 		);
 
-		auto x = std::to_wstring(settings->offset_ms);
-		SetDlgItemTextW(hwnd, IDC_OFFSET, x.c_str());
 
+		SetDlgItemInt(hwnd, IDC_OFFSET, settings->offset_ms, TRUE);
 
+		auto offsetHwnd = GetDlgItem(hwnd, IDC_OFFSET);
+
+		settings->prevCall = (WNDPROC)SetWindowLong(offsetHwnd, GWL_WNDPROC, (LPARAM)SignedIntegerSubclassProc);
+
+		auto j = SetWindowLongPtr(offsetHwnd, GWLP_USERDATA, LPARAM(settings));
 
 		break;
 	}
@@ -661,21 +682,10 @@ INT_PTR CALLBACK LogoControlPlugin::DialogProc(HWND hwnd, UINT message, WPARAM w
 
 		if (control == IDC_OFFSET)
 		{
-			std::wstring w;
-			w.resize(20);
-			auto strsz = GetDlgItemText(hwnd, control, (LPWSTR)w.c_str(), 20);
-			w.resize(strsz);
-			if (w.empty()) w = L"0";
-			try
-			{
-				settings->offset_ms = std::stol(w);
-			}
-			catch (const std::exception&)
-			{
-				settings->offset_ms = 0;
-				SetDlgItemTextW(hwnd, control, L"0");
-			}
 
+
+			BOOL isTranslated = FALSE;
+			settings->offset_ms = GetDlgItemInt(hwnd, control, &isTranslated, true/*signed*/);
 			return  LRESULT(0);
 		}
 
@@ -822,6 +832,90 @@ INT_PTR CALLBACK LogoControlPlugin::DialogPlgCfgProc(HWND hwnd, UINT message, WP
 	return DefWindowProcW(hwnd, message, wparam, lparam);
 }
 
+LRESULT LogoControlPlugin::SignedIntegerSubclassProc(HWND hWnd, UINT uMessage, WPARAM wParam, LPARAM lParam)
+{
+
+	auto settings = (PluginCommand*)(GetWindowLongW(hWnd, GWLP_USERDATA));
+	if (settings == nullptr) {
+		return (LRESULT)1;
+	}
+
+	constexpr auto  ACCEPTED_CHARS = L"0123456789+-\b";
+
+
+	switch (uMessage) {
+	case WM_CHAR:
+		auto c = static_cast<wchar_t>(wParam);
+		if (wcschr(ACCEPTED_CHARS, c) == nullptr)
+			return(0);
+
+
+		if ((c == L'+') || (c == L'-'))
+		{
+			std::wstring w;
+			SetLastError(0);
+			auto len = GetWindowTextLengthW(hWnd);
+
+			size_t startP = 0,
+				endP = 0;
+
+
+			SendMessageW(hWnd, EM_GETSEL, WPARAM(&startP), LPARAM(&endP));
+
+
+
+			w.resize(len + 1); //include zero term
+			auto res = GetWindowTextW(hWnd, w.data(), w.size());
+			w.resize(res);
+			if (len == res)
+			{
+				if (startP != endP)
+				{
+					w.erase(w.begin() + startP, w.begin() + endP);
+				}
+
+
+				if ((w.size() == 0) && (c == L'-'))
+					return CallWindowProcW(settings->prevCall, hWnd, uMessage, wParam, lParam);
+
+				if ((w[0] == '-') && (c == L'-')) return 0;
+				if ((w[0] == '-') && (c == L'+'))
+				{
+					w.erase(w.begin());
+					if (startP > 0) startP--;
+				}
+				else
+					if ((w[0] == '+') && (c == L'-'))
+					{
+						w.erase(w.begin());
+						w = L"-" + w;
+						startP = std::min(startP + 1, w.size() - 1);
+					}
+					else
+						if (c == L'-') {
+							w = L"-" + w;
+							startP = std::min(startP + 1, w.size() - 1);
+						}
+
+				SetWindowTextW(hWnd, w.data());
+
+
+				SendMessage(hWnd, EM_SETSEL, (WPARAM)startP, (LPARAM)startP);
+				/* "Replace" the selection (the selection is actually targeting
+					nothing and just sits at the end of the text in the box)
+					with the passed in TCHAR* from the button control that
+					sent the WM_APPEND_EDIT message */
+					//SendMessage(hWnd, EM_REPLACESEL, 0, lParam);
+			}
+			return(0); // dont send them to default
+		}
+		break;
+	}
+
+	return CallWindowProcW(settings->prevCall, hWnd, uMessage, wParam, lParam);
+
+}
+
 
 bool LogoControlPlugin::DoEditDialog(PluginCommand& settings)
 {
@@ -830,18 +924,20 @@ bool LogoControlPlugin::DoEditDialog(PluginCommand& settings)
 	HWND dialog{};
 	PluginCommand localSettings = settings;
 
+	auto window = GetActiveWindow(); 
+	
+
+	dialog = CreateDialogParamW(hi, MAKEINTRESOURCE(IDD_EDITDIALOG), window, DialogProc, LPARAM(&localSettings)); //LPARAM is same 32bit in 32bit app and 64 in 64
 
 
-
-	dialog = CreateDialogParamW(hi, MAKEINTRESOURCE(IDD_EDITDIALOG), nullptr, DialogProc, LPARAM(&localSettings)); //LPARAM is same 32bit in 32bit app and 64 in 64
-
+	
 	if (dialog == 0)
 	{
 		MessageBox(nullptr, L"Can not crete dialog", L"Error", MB_ICONERROR);
 		return false;
 	}
 
-
+	
 
 
 	ShowWindow(dialog, SW_NORMAL);
@@ -872,9 +968,9 @@ bool LogoControlPlugin::DoPluginCfgDialog(PluginSettings& settings)
 	PluginSettings localSettings = settings;
 
 
+	auto window = GetActiveWindow();
 
-
-	dialog = CreateDialogParamW(hi, MAKEINTRESOURCE(IDD_PLUGCFG_DLG), nullptr, DialogPlgCfgProc, LPARAM(&localSettings)); //LPARAM is same 32bit in 32bit app and 64 in 64
+	dialog = CreateDialogParamW(hi, MAKEINTRESOURCE(IDD_PLUGCFG_DLG), window, DialogPlgCfgProc, LPARAM(&localSettings)); //LPARAM is same 32bit in 32bit app and 64 in 64
 
 	if (dialog == 0)
 	{
