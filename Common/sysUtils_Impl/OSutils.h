@@ -24,6 +24,7 @@ namespace pbn
 		 pbn::String get_computer_name();
 
 		 pbn::String GetCurrentModuleFileName();
+		 void* GetCurrentModuleInstance();
 		 pbn::String get_current_module_path();
 
 

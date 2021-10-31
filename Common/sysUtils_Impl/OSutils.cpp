@@ -168,6 +168,18 @@ namespace pbn
 	static const void MyFunc()
 	{};
 
+
+	void* OS::GetCurrentModuleInstance()
+	{
+		HMODULE handle;
+		if (FALSE == GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (PWSTR)&MyFunc, &handle))
+		{
+			return nullptr;
+		}
+
+		return handle;		
+	}
+
 	pbn::String OS::GetCurrentModuleFileName()
 	{
 		HMODULE handle;

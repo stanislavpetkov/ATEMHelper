@@ -5,6 +5,7 @@
 // LOGOCONTROLPLUGIN_API functions as being imported from a DLL, whereas this DLL sees symbols
 // defined with this macro as being exported.
 #include <Unknwn.h>
+#include "Interfaces.h"
 #ifdef LOGOCONTROLPLUGIN_EXPORTS
 #define LOGOCONTROLPLUGIN_API __declspec(dllexport)
 #else
@@ -12,4 +13,4 @@
 #endif
 
 
-LOGOCONTROLPLUGIN_API HRESULT PlugInFunc(IUnknown** obj);
+LOGOCONTROLPLUGIN_API HRESULT _stdcall PlugInFunc(IUnknown** obj);

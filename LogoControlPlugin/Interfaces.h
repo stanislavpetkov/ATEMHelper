@@ -10,10 +10,11 @@ struct TDriverParams
 };
 
 
+
 struct __declspec(uuid("368EC636-02D4-4648-8DB9-49BC65F55E2A")) IPlayBoxOut :public IUnknown
 {
 	//retunrs 0 if inited ;1 if inited and activated;-1 on error
-	virtual HRESULT __stdcall Init(void** DriverData) = 0;
+	virtual HRESULT _stdcall Init(void** DriverData) = 0;
 
 	//Done is called when plugin must finalize his work
 	virtual HRESULT _stdcall Done(void* DriverData) = 0;
@@ -40,12 +41,12 @@ struct __declspec(uuid("368EC636-02D4-4648-8DB9-49BC65F55E2A")) IPlayBoxOut :pub
 //command data - data string for the command
 //Visual duration-float number that can be used to show the commands duration(whole number is seconds)
 //
-	virtual HRESULT _stdcall NewCommand(char* Command, void * DriverData) = 0;
+	virtual HRESULT _stdcall NewCommand(char** Command, void * DriverData) = 0;
 
 
 	//Edit cmd string previously returned by NewCommand.Buffer must be at least 16K
 //returns 0 on success ;-1 on error or cancel
-	virtual HRESULT _stdcall EditCommand(char* Command, void* DriverData) = 0;
+	virtual HRESULT _stdcall EditCommand(char** Command, void* DriverData) = 0;
 
 	//Call this to activate plugin. 0 on succes
 	virtual HRESULT _stdcall Activate(void * DriverData) = 0;

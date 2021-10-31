@@ -163,4 +163,8 @@ namespace pbn
 	extern bool compare_logical(const std::wstring& lhs, const std::wstring& rhs);
 	extern bool compare_logical(const std::string& lhs, const std::string& rhs);
 	extern bool compare_logical(const pbn::String& lhs, const pbn::String& rhs);
+
+
+	extern std::vector<std::string> split(const std::string& s, char seperator);
+	
 }

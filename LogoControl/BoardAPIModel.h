@@ -46,6 +46,25 @@ static void to_json(nlohmann::json& j, const BoardAPIModel& mdl)
 }
 
 
+static void from_json(const nlohmann::json& j, BoardAPIModel& mdl)
+{
+	GetJSValue(j, mdl, id);
+	GetJSValue(j, mdl, model);
+	GetJSValue(j, mdl, name);
+	GetJSValue(j, mdl, numLogos);
+	GetJSValue(j, mdl, activeLogo);
+	GetJSValue(j, mdl, activeLogoTxt);
+
+	GetJSValue(j, mdl, cpuUsage);
+	GetJSValue(j, mdl, cardTemperatureFront);
+	GetJSValue(j, mdl, cardTemperatureRear);
+	GetJSValue(j, mdl, ramUsage);
+	GetJSValue(j, mdl, referenceStat);
+	GetJSValue(j, mdl, inputAStat);
+	GetJSValue(j, mdl, cardTime);
+	mdl.last_update_time = 0;
+}
+
 struct BoardsAPIModel
 {
 	std::vector<BoardAPIModel> boards;
